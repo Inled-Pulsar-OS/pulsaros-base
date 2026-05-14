@@ -22,10 +22,7 @@ fi
 
 # 2. Instalar temas e iconos DENTRO del rootfs
 echo "Preparando archivos en el rootfs..."
-# Limpiamos primero con privilegios por si acaso
 pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons"
-
-# Copiamos usando pkexec y rutas ABSOLUTAS
 pkexec cp -r "$BUILD_DIR/MacTahoe" "$ROOTFS/tmp/"
 pkexec cp -r "$BUILD_DIR/MacTahoe-Icons" "$ROOTFS/tmp/"
 
@@ -45,21 +42,57 @@ echo "Instalando iconos MacTahoe..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./install.sh -t blue -d /usr/share/icons"
 
 # FIX AGRESIVO PARA LIBADWAITA (GTK4)
-# En GNOME 42+, Libadwaita ignora dconf. Hay que copiar el CSS directamente a la carpeta config.
-# Como hemos corrido como root, los archivos de GTK4 están en /root/.config. 
 echo "Distribuyendo fix agresivo de Libadwaita (GTK4)..."
 for TARGET in "/etc/skel" "/home/jaime"; do
     pkexec mkdir -p "$ROOTFS$TARGET/.config/gtk-4.0"
-    # Copiamos desde /root/.config/gtk-4.0 (generado por el instalador) 
-    # y también aseguramos los archivos del tema global
     pkexec cp -rf "$ROOTFS/usr/share/themes/MacTahoe-Dark/gtk-4.0/"* "$ROOTFS$TARGET/.config/gtk-4.0/" 2>/dev/null || true
     pkexec cp -rf "$ROOTFS/root/.config/gtk-4.0/"* "$ROOTFS$TARGET/.config/gtk-4.0/" 2>/dev/null || true
 done
-
-# Corregir permisos para el usuario jaime (UID 1000)
 pkexec chown -R 1000:1000 "$ROOTFS/home/jaime/.config"
 
-# 3. Configurar dconf para que el tema se aplique por defecto y activar extensiones
+# --- SISTEMA DE DESCARGA DE EXTENSIONES DESDE extensions.gnome.org ---
+GNOME_VER=$(pkexec /usr/sbin/chroot "$ROOTFS" gnome-shell --version | cut -d' ' -f3 | cut -d'.' -f1)
+echo "Detectada versión de GNOME: $GNOME_VER"
+
+install_extension_ego() {
+    local uuid=$1
+    echo "Instalando desde EGO: $uuid"
+    local info_url="https://extensions.gnome.org/extension-info/?uuid=${uuid}&shell_version=${GNOME_VER}"
+    local download_path=$(curl -s "$info_url" | jq -r '.download_url')
+    
+    if [ "$download_path" != "null" ] && [ ! -z "$download_path" ]; then
+        local full_url="https://extensions.gnome.org${download_path}"
+        echo "Descargando: $full_url"
+        local tmp_zip="/tmp/${uuid}.zip"
+        if curl -L -s -o "$tmp_zip" "$full_url"; then
+            pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/${uuid}"
+            pkexec unzip -o "$tmp_zip" -d "$ROOTFS/usr/share/gnome-shell/extensions/${uuid}"
+            pkexec chmod -R 755 "$ROOTFS/usr/share/gnome-shell/extensions/${uuid}"
+            rm "$tmp_zip"
+            echo "✅ $uuid instalada correctamente."
+        fi
+    else
+        echo "⚠️ No se encontró versión compatible en EGO para $uuid"
+    fi
+}
+
+EGO_EXTENSIONS=(
+    "search-light@icedman.github.com"
+    "moveclock@kuvaus.org"
+    "kiwimenu@kemma"
+    "compiz-alike-magic-lamp-effect@hermes83.github.com"
+    "fullscreen-to-empty-workspace2@corgijan.dev"
+    "blur-my-shell@aunetx"
+    "dash-to-dock@micxgx.gmail.com"
+    "user-theme@gnome-shell-extensions.gcampax.github.com"
+)
+for uuid in "${EGO_EXTENSIONS[@]}"; do install_extension_ego "$uuid"; done
+
+# Compilar esquemas de las extensiones instaladas
+echo "Compilando esquemas de extensiones..."
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/extensions -name schemas -type d -exec glib-compile-schemas {} \;"
+
+# 3. Configurar dconf
 echo "Configurando dconf default y extensiones..."
 pkexec mkdir -p "$ROOTFS/etc/dconf/db/local.d"
 cat <<EOF | pkexec tee "$ROOTFS/etc/dconf/db/local.d/00-pulsaros-theme"
@@ -110,41 +143,8 @@ brightness=0.6
 sigma=30
 EOF
 
-# Función para descargar e instalar extensiones de GNOME de forma real
-install_extension() {
-    local uuid=$1
-    local url=$2
-    echo "Instalando extensión: $uuid"
-    
-    # Crear directorio destino en el rootfs
-    pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
-    
-    # Descargar en el host y copiar al rootfs
-    if [ ! -z "$url" ]; then
-        local tmp_zip="/tmp/$uuid.zip"
-        if wget -qO "$tmp_zip" "$url"; then
-            pkexec unzip -o "$tmp_zip" -d "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
-            pkexec chmod -R 755 "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
-            rm "$tmp_zip"
-        else
-            echo "⚠️ Fallo al descargar la extensión: $uuid"
-        fi
-    fi
-}
-
-# Lista de extensiones con sus URLs de descarga
-install_extension "search-light@icedman.github.com" "https://github.com/icedman/search-light/releases/latest/download/search-light@icedman.github.com.shell-extension.zip"
-install_extension "moveclock@kuvaus.org" "https://github.com/kuvaus/gnome-shell-extension-move-clock/archive/refs/heads/master.zip"
-install_extension "compiz-alike-magic-lamp-effect@hermes83.github.com" "https://github.com/hermes83/compiz-alike-magic-lamp-effect/archive/refs/heads/master.zip"
-# Para las que no tienen zip directo fácil, el registro ya está en dconf
-
-# Actualizar base de datos dconf
 pkexec /usr/sbin/chroot "$ROOTFS" dconf update
 
-# Limpiar
 echo "Limpiando archivos temporales..."
-pkexec rm -rf "$ROOTFS/tmp/MacTahoe"
-pkexec rm -rf "$ROOTFS/tmp/MacTahoe-Icons"
-
-echo "✅ Temas, Iconos, Extensiones y GDM configurados."
-echo "💡 NOTA: Si la VM está encendida, reiníciala para aplicar todos los cambios (especialmente GTK4 y GDM)."
+pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons"
+echo "✅ Pulsar OS Personalizado."
