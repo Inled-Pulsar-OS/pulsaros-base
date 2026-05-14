@@ -1,0 +1,32 @@
+linux-image-amd64
+systemd-sysv
+udev
+apt
+iproute2
+netbase
+procps
+isc-dhcp-client
+bash-completion
+sudo
+passwd
+initramfs-tools
+libpam-modules
+util-linux
+dbus
+# GNOME Base
+gnome-shell
+gdm3
+network-manager
+gnome-terminal
+# Dependencias MacTahoe
+sassc
+libglib2.0-dev-bin
+libxml2-utils
+git
+ca-certificates
+# Herramientas de configuración
+dconf-cli
+# Aceleración QEMU/VirGL
+libgl1-mesa-dri
+virglrenderer
+mesa-utils

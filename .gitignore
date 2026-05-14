@@ -1,0 +1,16 @@
+# Directorio de construcción (Rootfs, ISOs, Imágenes)
+build/
+
+# Archivos temporales
+*.tmp
+*.log
+
+# Variables de entorno y secretos
+.env
+.env.local
+
+# Archivos del sistema de archivos 9p (QEMU)
+.qemu_9p/
+
+# Cache de paquetes (si se usa localmente)
+apt-cache/
