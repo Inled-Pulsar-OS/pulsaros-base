@@ -4,6 +4,9 @@
 
 Este repositorio es la base para la creación de distribuciones Linux personalizadas basadas en Debian (sid/trixie). Utiliza una arquitectura modular y auditable para permitir la creación de imágenes para múltiples arquitecturas y entornos de escritorio.
 
+## Estado del proyecto.  
+- **14/05/26**: GNOME funciona correctamente, extensiones instaladas y configuradas, tema aplicado, tema gtk4 se aplica correctamente, iconos funcionan correctamente, cursor mac ok. Por ahora usa muy pocos paquetes, se ampliará.
+
 ## Estructura del Proyecto (Screaming Architecture)
 
 La estructura está diseñada para que el propósito de cada componente sea evidente:
@@ -30,4 +33,4 @@ Para equipos de 2018 o recursos limitados, recomendamos:
 *   Pruebas mediante QEMU/KVM con aceleración.
 
 ---
-*Diseñado con ❤️ por Jaime y Gemini CLI.*
+*Licenciado bajo MIT-INLED.*
