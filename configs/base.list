@@ -39,6 +39,8 @@ ca-certificates
 # Herramientas de configuración
 dconf-cli
 gnome-tweaks
+wget
+unzip
 # Extensiones GNOME
 gnome-shell-extensions
 gnome-shell-extension-blur-my-shell
