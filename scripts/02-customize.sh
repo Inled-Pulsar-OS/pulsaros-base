@@ -48,8 +48,10 @@ pkexec chmod 0440 "$ROOTFS/etc/sudoers.d/jaime"
 # Modificar PAM para permitir passwords simples (opcional pero ayuda en desarrollo)
 pkexec sed -i 's/nullok_secure/nullok/' "$ROOTFS/etc/pam.d/common-auth" || true
 
-# Habilitar login en consola serie (necesario para QEMU)
-pkexec /usr/sbin/chroot "$ROOTFS" systemctl enable getty@ttyS0.service || true
+# Habilitar login en consola serie (QUITADO para evitar bucle)
+echo "Deshabilitando getty en ttyS0 para evitar conflicto con GDM3..."
+pkexec /usr/sbin/chroot "$ROOTFS" systemctl disable getty@ttyS0.service || true
+pkexec /usr/sbin/chroot "$ROOTFS" systemctl mask getty@ttyS0.service || true
 
 # Configurar Autologin Gráfico en GDM3
 echo "Configurando autologin gráfico para jaime..."

@@ -14,24 +14,23 @@ if [ ! -d "$BUILD_DIR/MacTahoe" ]; then
 fi
 
 # 2. Instalar el tema DENTRO del rootfs
-# Usamos un script temporal dentro del chroot para ejecutar el install.sh del tema
 echo "Instalando tema en el sistema..."
 cp -r "$BUILD_DIR/MacTahoe" "$ROOTFS/tmp/"
 
-# Ejecutamos la instalación con las opciones solicitadas:
-# -l: libadwaita fix
-# -b: blur version
-# -c dark: versión oscura
-# --silent-mode: para que no pregunte nada
+# Instalación global (/usr/share/themes) y local para el fix de libadwaita
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./install.sh -l -b -c dark --silent-mode"
 
-# 3. Configurar dconf para que el tema se aplique por defecto
-# Creamos un archivo de perfil dconf para que todos los usuarios lo hereden
-echo "Configurando dconf default para el tema..."
-pkexec mkdir -p "$ROOTFS/etc/dconf/profile"
-echo "user-db:user" | pkexec tee "$ROOTFS/etc/dconf/profile/user"
-echo "system-db:local" | pkexec tee -a "$ROOTFS/etc/dconf/profile/user"
+# Truco: Copiar la configuración de libadwaita generada a /etc/skel para que todos los usuarios la tengan
+echo "Aplicando fix de libadwaita a /etc/skel..."
+pkexec mkdir -p "$ROOTFS/etc/skel/.config/gtk-4.0"
+pkexec cp -r "$ROOTFS/root/.config/gtk-4.0/"* "$ROOTFS/etc/skel/.config/gtk-4.0/" 2>/dev/null || true
+# También aplicarlo al usuario jaime si ya existe
+pkexec mkdir -p "$ROOTFS/home/jaime/.config/gtk-4.0"
+pkexec cp -r "$ROOTFS/root/.config/gtk-4.0/"* "$ROOTFS/home/jaime/.config/gtk-4.0/" 2>/dev/null || true
+pkexec chown -R 1000:1000 "$ROOTFS/home/jaime/.config"
 
+# 3. Configurar dconf para que el tema se aplique por defecto y activar extensiones
+echo "Configurando dconf default y extensiones..."
 pkexec mkdir -p "$ROOTFS/etc/dconf/db/local.d"
 cat <<EOF | pkexec tee "$ROOTFS/etc/dconf/db/local.d/00-pulsaros-theme"
 [org/gnome/desktop/interface]
@@ -39,9 +38,13 @@ gtk-theme='MacTahoe-Dark'
 cursor-theme='MacTahoe-Dark'
 icon-theme='MacTahoe-Dark'
 color-scheme='prefer-dark'
+font-name='Sans 11'
 
 [org/gnome/shell/extensions/user-theme]
 name='MacTahoe-Dark'
+
+[org/gnome/shell]
+enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx']
 EOF
 
 # Actualizar base de datos dconf

@@ -44,7 +44,7 @@ pkexec env \
     -cpu host \
     -kernel "$KERNEL" \
     -initrd "$INITRD" \
-    -append "root=rootfs rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L,msize=262144 console=ttyS0 loglevel=7" \
+    -append "root=rootfs rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L,msize=262144 console=ttyS0 console=tty0 loglevel=7" \
     -fsdev local,id=rootfs,path="$ROOTFS",security_model=passthrough \
     -device virtio-9p-pci,fsdev=rootfs,mount_tag=rootfs \
     -device virtio-vga-gl \

@@ -15,11 +15,21 @@ util-linux
 dbus
 # GNOME Base
 gnome-shell
+gnome-session
 gdm3
 network-manager
 gnome-terminal
 xwayland
 xserver-xorg-core
+# Componentes críticos de sesión y permisos
+libpam-systemd
+polkitd
+dbus-user-session
+accountsservice
+at-spi2-core
+libpam-runtime
+libnss-systemd
+zstd
 # Dependencias MacTahoe
 sassc
 libglib2.0-dev-bin
@@ -28,6 +38,15 @@ git
 ca-certificates
 # Herramientas de configuración
 dconf-cli
+gnome-tweaks
+# Extensiones GNOME
+gnome-shell-extensions
+gnome-shell-extension-blur-my-shell
+gnome-shell-extension-dashtodock
+gnome-shell-extension-appindicator
+# Bootloader y Disco
+grub-pc
+grub-efi-amd64-bin
 # Aceleración QEMU/VirGL
 libgl1-mesa-dri
 libvirglrenderer1

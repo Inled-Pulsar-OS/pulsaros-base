@@ -20,12 +20,21 @@ if [ -d "$OUTPUT_DIR/etc" ]; then
     PACKAGE_LIST_SPACE=$(grep -v '^#' configs/base.list | grep -v '^$' | tr '\n' ' ')
     
     echo "Actualizando repositorios e instalando nuevos paquetes..."
+    # Montar sistemas de archivos virtuales necesarios para que APT/Systemd no se quejen
+    pkexec mount -t proc proc "$OUTPUT_DIR/proc" || true
+    pkexec mount -t sysfs sys "$OUTPUT_DIR/sys" || true
+    pkexec mount --bind /dev "$OUTPUT_DIR/dev" || true
+    pkexec mount --bind /dev/pts "$OUTPUT_DIR/dev/pts" || true
+
     pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get update
     pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get install -y $PACKAGE_LIST_SPACE
     
-    # Opcional: Autoremove para limpiar lo que ya no esté en la lista (cuidado con dependencias)
-    # pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get autoremove -y
-    
+    # Desmontar al terminar
+    pkexec umount -l "$OUTPUT_DIR/proc" || true
+    pkexec umount -l "$OUTPUT_DIR/sys" || true
+    pkexec umount -l "$OUTPUT_DIR/dev/pts" || true
+    pkexec umount -l "$OUTPUT_DIR/dev" || true
+
     echo "Sincronización completada."
     exit 0
 fi
