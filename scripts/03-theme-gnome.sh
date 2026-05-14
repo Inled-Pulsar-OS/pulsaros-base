@@ -42,7 +42,7 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh 
 
 # Instalación global de ICONOS
 echo "Instalando iconos MacTahoe..."
-pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./install.sh -t blue"
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./install.sh -t blue -d /usr/share/icons"
 
 # FIX AGRESIVO PARA LIBADWAITA (GTK4)
 # En GNOME 42+, Libadwaita ignora dconf. Hay que copiar el CSS directamente a la carpeta config.
@@ -116,15 +116,16 @@ install_extension() {
     local url=$2
     echo "Instalando extensión: $uuid"
     
-    # Crear directorio destino
+    # Crear directorio destino en el rootfs
     pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
     
-    # Descargar y extraer si se proporciona URL
+    # Descargar en el host y copiar al rootfs
     if [ ! -z "$url" ]; then
-        if wget -qO "/tmp/$uuid.zip" "$url"; then
-            pkexec unzip -o "/tmp/$uuid.zip" -d "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
+        local tmp_zip="/tmp/$uuid.zip"
+        if wget -qO "$tmp_zip" "$url"; then
+            pkexec unzip -o "$tmp_zip" -d "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
             pkexec chmod -R 755 "$ROOTFS/usr/share/gnome-shell/extensions/$uuid"
-            rm "/tmp/$uuid.zip"
+            rm "$tmp_zip"
         else
             echo "⚠️ Fallo al descargar la extensión: $uuid"
         fi
