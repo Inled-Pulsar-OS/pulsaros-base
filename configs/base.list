@@ -41,6 +41,7 @@ dconf-cli
 gnome-tweaks
 wget
 unzip
+imagemagick
 # Extensiones GNOME
 gnome-shell-extensions
 gnome-shell-extension-blur-my-shell

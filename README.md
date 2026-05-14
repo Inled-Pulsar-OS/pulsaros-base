@@ -1,6 +1,7 @@
 # PulsarOS Base
 > [!WARNING]
-> Este proyecto está en desarrollo. Actualmente no se recomienda su uso.
+> Este proyecto está en desarrollo. Actualmente no se recomienda su uso.  
+
 Este repositorio es la base para la creación de distribuciones Linux personalizadas basadas en Debian (sid/trixie). Utiliza una arquitectura modular y auditable para permitir la creación de imágenes para múltiples arquitecturas y entornos de escritorio.
 
 ## Estructura del Proyecto (Screaming Architecture)
