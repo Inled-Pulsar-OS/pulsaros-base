@@ -28,5 +28,7 @@ ca-certificates
 dconf-cli
 # Aceleración QEMU/VirGL
 libgl1-mesa-dri
-virglrenderer
+libvirglrenderer1
+libegl-mesa0
+libgbm1
 mesa-utils

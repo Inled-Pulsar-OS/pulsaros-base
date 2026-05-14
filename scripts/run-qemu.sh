@@ -27,14 +27,17 @@ sleep 1
 echo "🖥️ Iniciando QEMU con Aceleración KVM + VirGL..."
 echo "📂 Rootfs: $ROOTFS"
 echo "🍎 Kernel: $KERNEL"
-echo "⌨️ Consola serie activada en esta terminal."
-echo "💡 Se abrirá una ventana GTK con el escritorio."
+echo "💡 Usando NVIDIA/VirGL para renderizado."
 
-# Ejecutamos QEMU con aceleración
-# -enable-kvm: Aceleración de CPU
-# -device virtio-vga-gl: Driver de video con aceleración 3D
-# -display gtk,gl=on: Salida visual con OpenGL
-pkexec qemu-system-x86_64 \
+# Exportar variables de entorno para que QEMU encuentre la pantalla y la GPU
+# __NV_PRIME_RENDER_OFFLOAD=1 ayuda en portátiles con NVIDIA híbrida (como la 920MX)
+pkexec env \
+    DISPLAY="$DISPLAY" \
+    XAUTHORITY="$XAUTHORITY" \
+    XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
+    __NV_PRIME_RENDER_OFFLOAD=1 \
+    __GLX_VENDOR_LIBRARY_NAME=nvidia \
+    qemu-system-x86_64 \
     -m 4G \
     -smp 4 \
     -enable-kvm \
@@ -45,5 +48,5 @@ pkexec qemu-system-x86_64 \
     -fsdev local,id=rootfs,path="$ROOTFS",security_model=passthrough \
     -device virtio-9p-pci,fsdev=rootfs,mount_tag=rootfs \
     -device virtio-vga-gl \
-    -display gtk,gl=on \
+    -display sdl,gl=on \
     -serial mon:stdio
