@@ -48,16 +48,17 @@ pkexec chmod 0440 "$ROOTFS/etc/sudoers.d/jaime"
 # Modificar PAM para permitir passwords simples (opcional pero ayuda en desarrollo)
 pkexec sed -i 's/nullok_secure/nullok/' "$ROOTFS/etc/pam.d/common-auth" || true
 
-# Habilitar login en consola serie (necesario para QEMU) con Autologin para evitar el bucle
-echo "Configurando autologin en ttyS0 para el usuario jaime..."
-pkexec mkdir -p "$ROOTFS/etc/systemd/system/getty@ttyS0.service.d"
-cat <<EOF | pkexec tee "$ROOTFS/etc/systemd/system/getty@ttyS0.service.d/override.conf"
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin jaime --noclear %I \$TERM
-EOF
-
+# Habilitar login en consola serie (necesario para QEMU)
 pkexec /usr/sbin/chroot "$ROOTFS" systemctl enable getty@ttyS0.service || true
+
+# Configurar Autologin Gráfico en GDM3
+echo "Configurando autologin gráfico para jaime..."
+pkexec mkdir -p "$ROOTFS/etc/gdm3"
+cat <<EOF | pkexec tee "$ROOTFS/etc/gdm3/daemon.conf"
+[daemon]
+AutomaticLoginEnable=true
+AutomaticLogin=jaime
+EOF
 
 
 # Asegurar que el initramfs tenga soporte para 9pfs (necesario para arrancar desde carpeta)

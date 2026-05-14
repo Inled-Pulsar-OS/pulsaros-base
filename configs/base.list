@@ -18,6 +18,8 @@ gnome-shell
 gdm3
 network-manager
 gnome-terminal
+xwayland
+xserver-xorg-core
 # Dependencias MacTahoe
 sassc
 libglib2.0-dev-bin

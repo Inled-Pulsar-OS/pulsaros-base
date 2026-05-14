@@ -1,8 +1,9 @@
-# PulsarOS Base 🌌
-
+# PulsarOS Base
+> [!WARNING]
+> Este proyecto está en desarrollo. Actualmente no se recomienda su uso.
 Este repositorio es la base para la creación de distribuciones Linux personalizadas basadas en Debian (sid/trixie). Utiliza una arquitectura modular y auditable para permitir la creación de imágenes para múltiples arquitecturas y entornos de escritorio.
 
-## 🏗️ Estructura del Proyecto (Screaming Architecture)
+## Estructura del Proyecto (Screaming Architecture)
 
 La estructura está diseñada para que el propósito de cada componente sea evidente:
 
@@ -13,14 +14,14 @@ La estructura está diseñada para que el propósito de cada componente sea evid
 *   **`overlay/`**: Árbol de archivos que se inyectará directamente en el sistema de archivos de la distro (configuraciones en `/etc`, temas, etc.).
 *   **`docs/`**: Documentación detallada sobre procesos específicos.
 
-## 🚀 Flujo de Trabajo
+## Flujo de Trabajo
 
 1.  **Bootstrap**: Creación del sistema de archivos base usando `mmdebstrap`.
 2.  **Customization**: Ejecución de hooks y scripts dentro del `chroot` para instalar software y configurar el sistema.
 3.  **Overlay**: Inyección de archivos personalizados desde la carpeta `overlay/`.
 4.  **Imaging**: Empaquetado del sistema en una imagen booteable (ISO o imagen de disco).
 
-## 🛠️ Desarrollo Local e Iteración Rápida
+## Desarrollo Local e Iteración Rápida
 
 Para equipos de 2018 o recursos limitados, recomendamos:
 *   Uso de `mmdebstrap` con `--variant=apt` para reducir el tamaño inicial.
