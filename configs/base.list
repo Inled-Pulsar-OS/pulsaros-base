@@ -53,9 +53,7 @@ python3-dbus
 bamfdaemon
 libbamf3-dev
 libkeybinder-3.0-dev
-appmenu-gtk2-module
 appmenu-gtk3-module
-unity-gtk-module-common
 python3-setuptools
 python3-pip
 python3-xlib

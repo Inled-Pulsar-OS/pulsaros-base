@@ -168,10 +168,13 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
 EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'moveclock@kuvaus.org', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'appmenu-is-back@fthx', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
+FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Software.desktop', 'gnome-system-monitor.desktop', 'gnome-control-center.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
 [org.gnome.shell]
 enabled-extensions=$EXTENSIONS_LIST
+favorite-apps=$FAVORITES_LIST
+disable-extension-version-validation=true
 
 [org.gnome.desktop.background]
 picture-uri='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
@@ -187,6 +190,9 @@ gtk-theme='MacTahoe-Dark'
 cursor-theme='MacTahoe-blue-dark'
 icon-theme='MacTahoe-blue-dark'
 color-scheme='prefer-dark'
+
+[org.gnome.desktop.wm.preferences]
+button-layout='close,minimize,maximize:'
 
 [org.gnome.shell.extensions.dash-to-dock]
 dock-position='BOTTOM'
@@ -207,6 +213,7 @@ activities-button=false
 app-menu=false
 clock-menu-position=2
 clock-menu-visibility=true
+workspace-indicator=false
 panel-height=32
 panel-button-padding-size=10
 panel-indicator-padding-size=10
@@ -264,11 +271,16 @@ color-scheme='prefer-dark'
 picture-uri='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
 picture-uri-dark='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
 
+[org/gnome/desktop/wm/preferences]
+button-layout='close,minimize,maximize:'
+
 [org/gnome/shell/extensions/user-theme]
 name='MacTahoe-Dark'
 
 [org/gnome/shell]
 enabled-extensions=$EXTENSIONS_LIST
+favorite-apps=$FAVORITES_LIST
+disable-extension-version-validation=true
 
 [org/gnome/shell/extensions/dash-to-dock]
 dock-position='BOTTOM'
@@ -289,6 +301,7 @@ activities-button=false
 app-menu=false
 clock-menu-position=2
 clock-menu-visibility=true
+workspace-indicator=false
 panel-height=32
 panel-button-padding-size=10
 panel-indicator-padding-size=10
@@ -328,6 +341,20 @@ sigma=30
 [org/gnome/shell/extensions/blur-my-shell/window-list]
 brightness=0.6
 sigma=30
+EOF
+
+pkexec /usr/sbin/chroot "$ROOTFS" dconf update
+
+# 4. Bloquear configuraciones críticas (Locks) para evitar que se desactiven
+echo "Bloqueando configuraciones críticas (Locks)..."
+pkexec mkdir -p "$ROOTFS/etc/dconf/db/local.d/locks"
+cat <<EOF | pkexec tee "$ROOTFS/etc/dconf/db/local.d/locks/00-pulsaros-theme"
+/org/gnome/shell/enabled-extensions
+/org/gnome/shell/disable-extension-version-validation
+/org/gnome/shell/favorite-apps
+/org/gnome/desktop/background/picture-uri
+/org/gnome/desktop/background/picture-uri-dark
+/org/gnome/desktop/wm/preferences/button-layout
 EOF
 
 pkexec /usr/sbin/chroot "$ROOTFS" dconf update
