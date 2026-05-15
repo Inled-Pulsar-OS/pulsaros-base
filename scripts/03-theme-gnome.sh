@@ -38,6 +38,13 @@ pkexec chown -R 1000:1000 "$ROOTFS/tmp/MacTahoe"
 pkexec chown -R 1000:1000 "$ROOTFS/tmp/MacTahoe-Icons"
 pkexec chown -R 1000:1000 "$ROOTFS/tmp/Fildem"
 
+# --- Preparar entorno (Mounts) ---
+echo "Montando sistemas de archivos virtuales..."
+pkexec mount -t proc proc "$ROOTFS/proc" || true
+pkexec mount -t sysfs sys "$ROOTFS/sys" || true
+pkexec mount --bind /dev "$ROOTFS/dev" || true
+pkexec mount --bind /dev/pts "$ROOTFS/dev/pts" || true
+
 # Descargar fondo de pantalla por defecto
 echo "Descargando fondo de pantalla Pulsar OS..."
 pkexec mkdir -p "$ROOTFS/usr/share/backgrounds"
@@ -49,6 +56,33 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./install.sh
 
 echo "Aplicando GDM tweaks..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh -g --silent-mode"
+
+echo "Preparando perfiles de Firefox para el tema MacTahoe..."
+for USER_HOME in "/root" "/home/jaime" "/etc/skel"; do
+    pkexec mkdir -p "$ROOTFS$USER_HOME/.mozilla/firefox/pulsar.default"
+    cat <<EOF | pkexec tee "$ROOTFS$USER_HOME/.mozilla/firefox/profiles.ini" > /dev/null
+[General]
+StartWithLastProfile=1
+
+[Profile0]
+Name=default
+IsRelative=1
+Path=pulsar.default
+Default=1
+EOF
+done
+pkexec chown -R 1000:1000 "$ROOTFS/home/jaime/.mozilla"
+
+# PARCHE: Eliminar la llamada a full_sudo que bloquea el modo silent en chroot
+pkexec sed -i 's/full_sudo "${1}"; silent_mode/silent_mode/g' "$ROOTFS/tmp/MacTahoe/tweaks.sh"
+
+# PARCHE AGRESIVO: Forzar que el script ignore si Firefox está "inicializado"
+# pkexec sed -i 's/elif \[\[ ! -d "${FIREFOX_DIR_HOME}" && ! -d "${FIREFOX_FLATPAK_DIR_HOME}" && ! -d "${FIREFOX_SNAP_DIR_HOME}" \]\]; then/elif false; then/g' "$ROOTFS/tmp/MacTahoe/tweaks.sh"
+
+echo "Aplicando Firefox MacTahoe theme..."
+# Ejecutamos para root y para jaime
+# pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh -f --silent-mode"
+# pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && sudo -u jaime ./tweaks.sh -f --silent-mode"
 
 # Instalación global de ICONOS
 echo "Instalando iconos MacTahoe..."
@@ -70,6 +104,9 @@ pkexec sed -i '/pkexec apt install -y appmenu-gtk2-module/ s/^/# /' "$ROOTFS/tmp
 pkexec sed -i 's/systemctl --user/# systemctl --user/g' "$ROOTFS/tmp/Fildem/install_app.sh"
 
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && ./install_app.sh"
+# Asegurar que el binario de fildem sea reconocido forzando un symlink si es necesario
+pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem /usr/bin/fildem || true
+pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem-hud /usr/bin/fildem-hud || true
 
 # Instalar la extensión globalmente en lugar de localmente
 pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es"
@@ -129,7 +166,7 @@ install_extension_ego() {
     echo "Instalando desde EGO: $uuid"
     local info_url="https://extensions.gnome.org/extension-info/?uuid=${uuid}&shell_version=${GNOME_VER}"
     local download_path=$(curl -s "$info_url" | jq -r '.download_url')
-    
+
     if [ "$download_path" != "null" ] && [ ! -z "$download_path" ]; then
         local full_url="https://extensions.gnome.org${download_path}"
         echo "Descargando: $full_url"
@@ -167,7 +204,7 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
 EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'appmenu-is-back@fthx', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
-FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Software.desktop', 'gnome-system-monitor.desktop', 'gnome-control-center.desktop']"
+FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Software.desktop', 'vlc.desktop', 'org.gnome.Totem.desktop', 'gnome-system-monitor.desktop', 'gnome-control-center.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
 [org.gnome.shell]
@@ -205,7 +242,7 @@ transparency-mode='FIXED'
 background-opacity=0.2
 custom-theme-shrink=true
 show-apps-at-top=true
-show-trash=false
+show-trash=true
 
 [org.gnome.shell.extensions.just-perfection]
 activities-button=false
@@ -298,7 +335,7 @@ transparency-mode='FIXED'
 background-opacity=0.2
 custom-theme-shrink=true
 show-apps-at-top=true
-show-trash=false
+show-trash=true
 
 [org/gnome/shell/extensions/just-perfection]
 activities-button=false
@@ -367,6 +404,13 @@ cat <<EOF | pkexec tee "$ROOTFS/etc/dconf/db/local.d/locks/00-pulsaros-theme"
 EOF
 
 pkexec /usr/sbin/chroot "$ROOTFS" dconf update
+
+# --- Desmontar sistemas de archivos virtuales ---
+echo "Desmontando sistemas de archivos virtuales..."
+pkexec umount -l "$ROOTFS/proc" || true
+pkexec umount -l "$ROOTFS/sys" || true
+pkexec umount -l "$ROOTFS/dev/pts" || true
+pkexec umount -l "$ROOTFS/dev" || true
 
 echo "Limpiando archivos temporales..."
 pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons" "$ROOTFS/tmp/Fildem"

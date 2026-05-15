@@ -40,8 +40,16 @@ ca-certificates
 dconf-cli
 gnome-tweaks
 wget
+curl
 unzip
 imagemagick
+# Navegador y Multimedia
+firefox-esr
+vlc
+totem
+# Flatpak
+flatpak
+gnome-software-plugin-flatpak
 # Extensiones GNOME
 gnome-shell-extensions
 gnome-shell-extension-blur-my-shell

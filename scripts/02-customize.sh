@@ -72,4 +72,41 @@ echo "9p
 # Regenerar initramfs para aplicar los cambios de módulos
 pkexec /usr/sbin/chroot "$ROOTFS" /usr/sbin/update-initramfs -u
 
+# --- Preparar entorno para instalaciones (Mounts) ---
+echo "Montando sistemas de archivos virtuales..."
+pkexec mount -t proc proc "$ROOTFS/proc" || true
+pkexec mount -t sysfs sys "$ROOTFS/sys" || true
+pkexec mount --bind /dev "$ROOTFS/dev" || true
+pkexec mount --bind /dev/pts "$ROOTFS/dev/pts" || true
+
+# --- Instalación de Software Adicional ---
+echo "--- Instalando Software Adicional (Flatpak, AppInstall) ---"
+
+# 1. Configurar Flathub
+echo "Configurando Flathub..."
+pkexec /usr/sbin/chroot "$ROOTFS" flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+# 2. Instalar Apps desde Flathub (OnlyOffice y LocalSend)
+echo "Instalando OnlyOffice y LocalSend (esto puede tardar)..."
+pkexec /usr/sbin/chroot "$ROOTFS" flatpak install --system -y flathub org.onlyoffice.desktopeditors
+pkexec /usr/sbin/chroot "$ROOTFS" flatpak install --system -y flathub org.localsend.localsend_app
+
+# 3. Descargar e Instalar AppInstall (DEB)
+echo "Instalando AppInstall..."
+APPINSTALL_URL="https://github.com/InledGroup/appinstall/releases/download/v11.0/appinstall_11.0_all.deb"
+pkexec wget -q -O "$ROOTFS/tmp/appinstall.deb" "$APPINSTALL_URL"
+pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/appinstall.deb
+pkexec rm -f "$ROOTFS/tmp/appinstall.deb"
+
+# 4. Establecer Firefox como navegador predeterminado
+echo "Estableciendo Firefox como predeterminado..."
+pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --set x-www-browser /usr/bin/firefox-esr
+
+# --- Desmontar sistemas de archivos virtuales ---
+echo "Desmontando sistemas de archivos virtuales..."
+pkexec umount -l "$ROOTFS/proc" || true
+pkexec umount -l "$ROOTFS/sys" || true
+pkexec umount -l "$ROOTFS/dev/pts" || true
+pkexec umount -l "$ROOTFS/dev" || true
+
 echo "Personalización completada."

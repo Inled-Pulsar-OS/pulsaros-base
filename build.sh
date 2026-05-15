@@ -12,5 +12,8 @@ bash scripts/01-bootstrap.sh
 # 2. Customización
 bash scripts/02-customize.sh
 
+# 3. Temas y Extensiones GNOME
+bash scripts/03-theme-gnome.sh
+
 echo "✅ Proceso finalizado."
 echo "Para probar la distro, ejecuta: ./scripts/run-qemu.sh"
