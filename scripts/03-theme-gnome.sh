@@ -148,7 +148,6 @@ install_extension_ego() {
 
 EGO_EXTENSIONS=(
     "search-light@icedman.github.com"
-    "moveclock@kuvaus.org"
     "kiwimenu@kemma"
     "compiz-alike-magic-lamp-effect@hermes83.github.com"
     "fullscreen-to-empty-workspace2@corgijan.dev"
@@ -167,7 +166,7 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
-EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'moveclock@kuvaus.org', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'appmenu-is-back@fthx', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'appmenu-is-back@fthx', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
 FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Software.desktop', 'gnome-system-monitor.desktop', 'gnome-control-center.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
@@ -211,7 +210,8 @@ show-trash=false
 [org.gnome.shell.extensions.just-perfection]
 activities-button=false
 app-menu=false
-clock-menu-position=2
+clock-menu-position=1
+clock-menu-position-offset=12
 clock-menu-visibility=true
 workspace-indicator=false
 panel-height=32
@@ -220,6 +220,10 @@ panel-indicator-padding-size=10
 animation-speed=200
 startup-status=0
 dash-icon-size=0
+
+[org.gnome.shell.extensions.kiwimenu]
+activity-menu-visibility=false
+icon=10
 
 [org.gnome.shell.extensions.blur-my-shell.appfolder]
 brightness=0.6
@@ -299,7 +303,8 @@ show-trash=false
 [org/gnome/shell/extensions/just-perfection]
 activities-button=false
 app-menu=false
-clock-menu-position=2
+clock-menu-position=1
+clock-menu-position-offset=12
 clock-menu-visibility=true
 workspace-indicator=false
 panel-height=32
@@ -308,6 +313,10 @@ panel-indicator-padding-size=10
 animation-speed=200
 startup-status=0
 dash-icon-size=0
+
+[org/gnome/shell/extensions/kiwimenu]
+activity-menu-visibility=false
+icon=10
 
 [org/gnome/shell/extensions/blur-my-shell/appfolder]
 brightness=0.6
