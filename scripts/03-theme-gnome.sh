@@ -3,9 +3,10 @@ set -e
 ROOTFS="$(realpath -m build/rootfs)"
 THEME_REPO="https://github.com/Inled-Pulsar-OS/MacTahoe-gtk-theme"
 ICONS_REPO="https://github.com/Inled-Pulsar-OS/MacTahoe-icon-theme"
+FILDEM_REPO="https://github.com/InledGroup/Fildem"
 BUILD_DIR="$(realpath -m build/themes)"
 
-echo "🎨 Configurando Tema MacTahoe, Iconos y GDM..."
+echo "🎨 Configurando Tema MacTahoe, Iconos, GDM y Fildem HUD..."
 
 # 1. Clonar repositorios si no existen
 mkdir -p "$BUILD_DIR"
@@ -19,16 +20,28 @@ if [ ! -d "$BUILD_DIR/MacTahoe-Icons/.git" ]; then
     rm -rf "$BUILD_DIR/MacTahoe-Icons"
     git clone "$ICONS_REPO" "$BUILD_DIR/MacTahoe-Icons" --depth=1
 fi
+if [ ! -d "$BUILD_DIR/Fildem/.git" ]; then
+    echo "Clonando repositorio de Fildem HUD..."
+    rm -rf "$BUILD_DIR/Fildem"
+    git clone "$FILDEM_REPO" "$BUILD_DIR/Fildem" --depth=1
+fi
 
 # 2. Instalar temas e iconos DENTRO del rootfs
 echo "Preparando archivos en el rootfs..."
-pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons"
+pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons" "$ROOTFS/tmp/Fildem"
 pkexec cp -r "$BUILD_DIR/MacTahoe" "$ROOTFS/tmp/"
 pkexec cp -r "$BUILD_DIR/MacTahoe-Icons" "$ROOTFS/tmp/"
+pkexec cp -r "$BUILD_DIR/Fildem" "$ROOTFS/tmp/"
 
 # Asegurar que el usuario jaime (UID 1000) puede leer los archivos temporales
 pkexec chown -R 1000:1000 "$ROOTFS/tmp/MacTahoe"
 pkexec chown -R 1000:1000 "$ROOTFS/tmp/MacTahoe-Icons"
+pkexec chown -R 1000:1000 "$ROOTFS/tmp/Fildem"
+
+# Descargar fondo de pantalla por defecto
+echo "Descargando fondo de pantalla Pulsar OS..."
+pkexec mkdir -p "$ROOTFS/usr/share/backgrounds"
+pkexec wget -q -O "$ROOTFS/usr/share/backgrounds/pulsar-os-tahoe.png" "https://raw.githubusercontent.com/Inled-Pulsar-OS/pulsar-art/refs/heads/main/pulsar-os-tahoe.png"
 
 # Instalación global GTK y GDM (Corremos como ROOT para permitir --silent-mode)
 echo "Aplicando temas GTK..."
@@ -40,6 +53,63 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh 
 # Instalación global de ICONOS
 echo "Instalando iconos MacTahoe..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./install.sh -t blue -d /usr/share/icons"
+
+# Instalación de Fildem HUD
+echo "Instalando Fildem HUD (App y Extension)..."
+# SHIM: Crear un pkexec falso en el chroot para evitar fallos (ya somos root)
+cat <<'EOF' | pkexec tee "$ROOTFS/usr/local/bin/pkexec" > /dev/null
+#!/bin/bash
+"$@"
+EOF
+pkexec chmod +x "$ROOTFS/usr/local/bin/pkexec"
+pkexec cp "$ROOTFS/usr/local/bin/pkexec" "$ROOTFS/usr/local/bin/sudo"
+
+# Parchear el script para evitar fallos de apt y systemd en chroot
+pkexec sed -i '/pkexec apt/,/appmenu-gtk3-module/ s/^/# /' "$ROOTFS/tmp/Fildem/install_app.sh"
+pkexec sed -i '/pkexec apt install -y appmenu-gtk2-module/ s/^/# /' "$ROOTFS/tmp/Fildem/install_app.sh"
+pkexec sed -i 's/systemctl --user/# systemctl --user/g' "$ROOTFS/tmp/Fildem/install_app.sh"
+
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && ./install_app.sh"
+
+# Instalar la extensión globalmente en lugar de localmente
+pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es"
+pkexec cp -r "$ROOTFS/tmp/Fildem/fildem@inled.es/"* "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es/"
+pkexec /usr/sbin/chroot "$ROOTFS" glib-compile-schemas "/usr/share/gnome-shell/extensions/fildem@inled.es/schemas/"
+
+# Eliminar shims
+pkexec rm -f "$ROOTFS/usr/local/bin/pkexec" "$ROOTFS/usr/local/bin/sudo"
+
+# Configurar GTK Modules para Fildem (Global)
+echo "Configurando GTK Modules para Fildem..."
+pkexec mkdir -p "$ROOTFS/etc/gtk-3.0"
+cat <<EOF | pkexec tee "$ROOTFS/etc/gtk-3.0/settings.ini"
+[Settings]
+gtk-modules=appmenu-gtk-module
+EOF
+
+pkexec mkdir -p "$ROOTFS/etc/gtk-2.0"
+echo 'gtk-modules="appmenu-gtk-module"' | pkexec tee "$ROOTFS/etc/gtk-2.0/gtkrc"
+
+# Replicar en skel y home/jaime
+for TARGET in "/etc/skel" "/home/jaime"; do
+    pkexec mkdir -p "$ROOTFS$TARGET/.config/gtk-3.0"
+    pkexec cp "$ROOTFS/etc/gtk-3.0/settings.ini" "$ROOTFS$TARGET/.config/gtk-3.0/settings.ini"
+    pkexec cp "$ROOTFS/etc/gtk-2.0/gtkrc" "$ROOTFS$TARGET/.gtkrc-2.0"
+done
+
+# Configurar Autostart para Fildem
+echo "Configurando autostart para Fildem..."
+pkexec mkdir -p "$ROOTFS/etc/xdg/autostart"
+cat <<EOF | pkexec tee "$ROOTFS/etc/xdg/autostart/fildem.desktop"
+[Desktop Entry]
+Type=Application
+Exec=fildem
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Fildem HUD
+Comment=Global Menu and HUD
+EOF
 
 # FIX AGRESIVO PARA LIBADWAITA (GTK4)
 echo "Distribuyendo fix agresivo de Libadwaita (GTK4)..."
@@ -85,6 +155,9 @@ EGO_EXTENSIONS=(
     "blur-my-shell@aunetx"
     "dash-to-dock@micxgx.gmail.com"
     "user-theme@gnome-shell-extensions.gcampax.github.com"
+    "appmenu-is-back@fthx"
+    "just-perfection-desktop@just-perfection"
+    "appindicatorsupport@rgcjonas.gmail.com"
 )
 for uuid in "${EGO_EXTENSIONS[@]}"; do install_extension_ego "$uuid"; done
 
@@ -92,8 +165,93 @@ for uuid in "${EGO_EXTENSIONS[@]}"; do install_extension_ego "$uuid"; done
 echo "Compilando esquemas de extensiones..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/extensions -name schemas -type d -exec glib-compile-schemas {} \;"
 
-# 3. Configurar dconf
-echo "Configurando dconf default y extensiones..."
+# --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
+echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'moveclock@kuvaus.org', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'appmenu-is-back@fthx', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
+
+cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
+[org.gnome.shell]
+enabled-extensions=$EXTENSIONS_LIST
+
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
+picture-uri-dark='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
+picture-options='zoom'
+
+[org.gnome.desktop.screensaver]
+picture-uri='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
+picture-options='zoom'
+
+[org.gnome.desktop.interface]
+gtk-theme='MacTahoe-Dark'
+cursor-theme='MacTahoe-blue-dark'
+icon-theme='MacTahoe-blue-dark'
+color-scheme='prefer-dark'
+
+[org.gnome.shell.extensions.dash-to-dock]
+dock-position='BOTTOM'
+extend-height=false
+dash-max-icon-size=48
+click-action='minimize-or-previews'
+running-indicator-style='DOTS'
+intellihide=true
+dock-fixed=false
+transparency-mode='FIXED'
+background-opacity=0.2
+custom-theme-shrink=true
+show-apps-at-top=true
+show-trash=false
+
+[org.gnome.shell.extensions.just-perfection]
+activities-button=false
+app-menu=false
+clock-menu-position=2
+clock-menu-visibility=true
+panel-height=32
+panel-button-padding-size=10
+panel-indicator-padding-size=10
+animation-speed=200
+startup-status=0
+dash-icon-size=0
+
+[org.gnome.shell.extensions.blur-my-shell.appfolder]
+brightness=0.6
+sigma=30
+
+[org.gnome.shell.extensions.blur-my-shell.applications]
+blur=true
+blur-on-overview=false
+corner-when-maximized=true
+dynamic-opacity=false
+enable-all=true
+opacity=255
+sigma=23
+
+[org.gnome.shell.extensions.blur-my-shell.dash-to-dock]
+blur=true
+brightness=0.6
+override-background=true
+pipeline='pipeline_default_rounded'
+sigma=30
+static-blur=true
+style-dash-to-dock=2
+unblur-in-overview=true
+
+[org.gnome.shell.extensions.blur-my-shell.panel]
+brightness=0.6
+corner-radius=0
+force-light-text=false
+sigma=30
+
+[org.gnome.shell.extensions.blur-my-shell.window-list]
+brightness=0.6
+sigma=30
+EOF
+
+pkexec /usr/sbin/chroot "$ROOTFS" glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+# 3. Mantener dconf como backup de seguridad
+echo "Configurando dconf default..."
 pkexec mkdir -p "$ROOTFS/etc/dconf/db/local.d"
 cat <<EOF | pkexec tee "$ROOTFS/etc/dconf/db/local.d/00-pulsaros-theme"
 [org/gnome/desktop/interface]
@@ -101,13 +259,42 @@ gtk-theme='MacTahoe-Dark'
 cursor-theme='MacTahoe-blue-dark'
 icon-theme='MacTahoe-blue-dark'
 color-scheme='prefer-dark'
-font-name='Sans 11'
+
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
+picture-uri-dark='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
 
 [org/gnome/shell/extensions/user-theme]
 name='MacTahoe-Dark'
 
 [org/gnome/shell]
-enabled-extensions=['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'moveclock@kuvaus.org', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev']
+enabled-extensions=$EXTENSIONS_LIST
+
+[org/gnome/shell/extensions/dash-to-dock]
+dock-position='BOTTOM'
+extend-height=false
+dash-max-icon-size=48
+click-action='minimize-or-previews'
+running-indicator-style='DOTS'
+intellihide=true
+dock-fixed=false
+transparency-mode='FIXED'
+background-opacity=0.2
+custom-theme-shrink=true
+show-apps-at-top=true
+show-trash=false
+
+[org/gnome/shell/extensions/just-perfection]
+activities-button=false
+app-menu=false
+clock-menu-position=2
+clock-menu-visibility=true
+panel-height=32
+panel-button-padding-size=10
+panel-indicator-padding-size=10
+animation-speed=200
+startup-status=0
+dash-icon-size=0
 
 [org/gnome/shell/extensions/blur-my-shell/appfolder]
 brightness=0.6
@@ -146,5 +333,5 @@ EOF
 pkexec /usr/sbin/chroot "$ROOTFS" dconf update
 
 echo "Limpiando archivos temporales..."
-pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons"
+pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons" "$ROOTFS/tmp/Fildem"
 echo "✅ Pulsar OS Personalizado."

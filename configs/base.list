@@ -47,6 +47,18 @@ gnome-shell-extensions
 gnome-shell-extension-blur-my-shell
 gnome-shell-extension-dashtodock
 gnome-shell-extension-appindicator
+# Dependencias Fildem HUD
+python3-gi
+python3-dbus
+bamfdaemon
+libbamf3-dev
+libkeybinder-3.0-dev
+appmenu-gtk2-module
+appmenu-gtk3-module
+unity-gtk-module-common
+python3-setuptools
+python3-pip
+python3-xlib
 # Bootloader y Disco
 grub-pc
 grub-efi-amd64-bin
