@@ -15,5 +15,11 @@ bash scripts/02-customize.sh
 # 3. Temas y Extensiones GNOME
 bash scripts/03-theme-gnome.sh
 
+# 4. Tema de GRUB
+bash scripts/04-grub-theme.sh
+
+# 5. Calamares y Auto-instalador
+bash scripts/05-calamares.sh
+
 echo "✅ Proceso finalizado."
 echo "Para probar la distro, ejecuta: ./scripts/run-qemu.sh"
