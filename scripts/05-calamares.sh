@@ -56,6 +56,23 @@ style:
    sidebarTextSelect:    "#88c0d0"
    sidebarTextHighlight: "#5e81ac"
 
+slideshow:               "show.qml"
+slideshowAPI: 2
+EOF
+
+# 2.5 Crear un slideshow QML en blanco para evitar errores
+cat <<'EOF' | pkexec tee "$BRANDING_DIR/show.qml" > /dev/null
+import QtQuick 2.0
+import QtQuick.Controls 2.0
+
+Item {
+    id: presentation
+    anchors.fill: parent
+    Rectangle {
+        anchors.fill: parent
+        color: "transparent"
+    }
+}
 EOF
 
 # 3. Descargar o generar imágenes de branding
