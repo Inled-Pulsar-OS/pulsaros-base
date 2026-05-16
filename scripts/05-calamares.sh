@@ -121,10 +121,11 @@ pkexec mkdir -p "$AUTOSTART_DIR"
 # Script wrapper para Wayland
 cat <<'EOF' | pkexec tee "$ROOTFS/usr/local/bin/launch-calamares" > /dev/null
 #!/bin/bash
-if [ -n "$WAYLAND_DISPLAY" ]; then
-    xhost +SI:localuser:root
-fi
-pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY WAYLAND_DISPLAY=$WAYLAND_DISPLAY XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR calamares
+# Permitir conexiones X11 locales para root (necesario para pkexec GUI en Wayland)
+xhost +local:root > /dev/null 2>&1 || true
+
+# Ejecutar calamares con variables de entorno preservadas
+pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" calamares "$@"
 EOF
 pkexec chmod +x "$ROOTFS/usr/local/bin/launch-calamares"
 
@@ -133,7 +134,7 @@ cat <<EOF | pkexec tee "$AUTOSTART_DIR/calamares.desktop" > /dev/null
 Type=Application
 Name=Install PulsarOS
 GenericName=System Installer
-Exec=launch-calamares
+Exec=/usr/local/bin/launch-calamares
 Icon=calamares
 Terminal=false
 Categories=Qt;System;
@@ -151,7 +152,7 @@ echo "Configurando reglas de Polkit para ejecución sin contraseña..."
 pkexec mkdir -p "$ROOTFS/etc/polkit-1/rules.d"
 cat <<EOF | pkexec tee "$ROOTFS/etc/polkit-1/rules.d/49-nopasswd-calamares.rules" > /dev/null
 polkit.addRule(function(action, subject) {
-    if (action.id == "com.github.calamares.calamares.pkexec.run" && subject.isInGroup("sudo")) {
+    if (action.id == "com.github.calamares.calamares.pkexec.run") {
         return polkit.Result.YES;
     }
 });

@@ -100,6 +100,9 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./inst
 
 # Instalación de Fildem HUD
 echo "Instalando Fildem HUD (App y Extension)..."
+# PARCHE: Corregir bug de detección de Wayland en Fildem que provoca crash si las variables no están seteadas
+sed -i "s/return 'wayland' in (disp or type)/return 'wayland' in (disp or type or '')/" "$ROOTFS/tmp/Fildem/fildem/utils/wayland.py"
+
 # PARCHE: Corregir instalación de Fildem usando setup.py correctamente
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && python3 setup.py install"
 
@@ -247,7 +250,7 @@ show-apps-at-top=true
 show-trash=true
 # Habilitar el anclaje y movimiento de iconos
 move-to-monitor=true
-EOF
+
 [org.gnome.shell.extensions.just-perfection]
 activities-button=false
 app-menu=false
@@ -327,7 +330,7 @@ enabled-extensions=$EXTENSIONS_LIST
 favorite-apps=$FAVORITES_LIST
 disable-extension-version-validation=true
 
-[org.gnome.shell.extensions.dash-to-dock]
+[org/gnome/shell/extensions/dash-to-dock]
 dock-position='BOTTOM'
 extend-height=false
 dash-max-icon-size=48
@@ -340,9 +343,8 @@ background-opacity=0.2
 custom-theme-shrink=true
 show-apps-at-top=true
 show-trash=true
-# Habilitar el anclaje y movimiento de iconos
 move-to-monitor=true
-EOF
+
 [org/gnome/shell/extensions/just-perfection]
 activities-button=false
 app-menu=false
