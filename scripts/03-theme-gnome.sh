@@ -107,6 +107,12 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && python3 setup.
 pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem /usr/bin/fildem || true
 pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem-hud /usr/bin/fildem-hud || true
 
+# Configurar el servicio systemd de fildem de forma global para todos los usuarios
+echo "Configurando Fildem HUD Systemd Service..."
+pkexec mkdir -p "$ROOTFS/usr/lib/systemd/user/default.target.wants"
+pkexec cp "$ROOTFS/tmp/Fildem/fildem.service" "$ROOTFS/usr/lib/systemd/user/"
+pkexec ln -sf "/usr/lib/systemd/user/fildem.service" "$ROOTFS/usr/lib/systemd/user/default.target.wants/fildem.service"
+
 # Instalar la extensión globalmente en lugar de localmente
 pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es"
 pkexec cp -r "$ROOTFS/tmp/Fildem/fildem@inled.es/"* "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es/"
@@ -187,7 +193,6 @@ EGO_EXTENSIONS=(
     "blur-my-shell@aunetx"
     "dash-to-dock@micxgx.gmail.com"
     "user-theme@gnome-shell-extensions.gcampax.github.com"
-    "appmenu-is-back@fthx"
     "just-perfection-desktop@just-perfection"
     "appindicatorsupport@rgcjonas.gmail.com"
 )
@@ -199,8 +204,9 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
-EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'appmenu-is-back@fthx', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
-FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Software.desktop', 'vlc.desktop', 'org.gnome.Totem.desktop', 'gnome-system-monitor.desktop', 'gnome-control-center.desktop']"
+# Priorizamos fildem@inled.es
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
+FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Geary.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Calculator.desktop', 'com.github.xournalpp.xournalpp.desktop', 'org.gnome.Loupe.desktop', 'io.bassi.Amberol.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Software.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
 [org.gnome.shell]
@@ -397,7 +403,6 @@ pkexec mkdir -p "$ROOTFS/etc/dconf/db/local.d/locks"
 cat <<EOF | pkexec tee "$ROOTFS/etc/dconf/db/local.d/locks/00-pulsaros-theme"
 /org/gnome/shell/enabled-extensions
 /org/gnome/shell/disable-extension-version-validation
-/org/gnome/shell/favorite-apps
 /org/gnome/desktop/background/picture-uri
 /org/gnome/desktop/background/picture-uri-dark
 /org/gnome/desktop/wm/preferences/button-layout

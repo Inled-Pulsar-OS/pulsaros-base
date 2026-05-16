@@ -70,6 +70,18 @@ grub-pc
 grub-efi-amd64-bin
 calamares
 calamares-settings-debian
+# Aplicaciones Estándar
+gnome-calculator
+gnome-calendar
+geary
+xournalpp
+loupe
+gnome-contacts
+gnome-music
+amberol
+endeavour
+gnome-clocks
+gnome-weather
 # Aceleración QEMU/VirGL
 libgl1-mesa-dri
 libvirglrenderer1

@@ -117,12 +117,23 @@ EOF
 # 5. Configurar Auto-arranque en el entorno Live para el usuario jaime
 AUTOSTART_DIR="$ROOTFS/home/jaime/.config/autostart"
 pkexec mkdir -p "$AUTOSTART_DIR"
+
+# Script wrapper para Wayland
+cat <<'EOF' | pkexec tee "$ROOTFS/usr/local/bin/launch-calamares" > /dev/null
+#!/bin/bash
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    xhost +SI:localuser:root
+fi
+pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY WAYLAND_DISPLAY=$WAYLAND_DISPLAY XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR calamares
+EOF
+pkexec chmod +x "$ROOTFS/usr/local/bin/launch-calamares"
+
 cat <<EOF | pkexec tee "$AUTOSTART_DIR/calamares.desktop" > /dev/null
 [Desktop Entry]
 Type=Application
 Name=Install PulsarOS
 GenericName=System Installer
-Exec=pkexec calamares
+Exec=launch-calamares
 Icon=calamares
 Terminal=false
 Categories=Qt;System;
@@ -137,20 +148,10 @@ pkexec chown -R 1000:1000 "$ROOTFS/home/jaime/.config"
 
 # 6. Polkit rule para permitir a jaime ejecutar calamares sin password (específico para el instalador)
 echo "Configurando reglas de Polkit para ejecución sin contraseña..."
-pkexec mkdir -p "$ROOTFS/etc/polkit-1/localauthority/50-local.d"
-cat <<EOF | pkexec tee "$ROOTFS/etc/polkit-1/localauthority/50-local.d/calamares.pkla" > /dev/null
-[Allow jaime to run calamares]
-Identity=unix-user:jaime
-Action=org.debian.pkexec.calamares
-ResultAny=yes
-ResultInactive=yes
-ResultActive=yes
-EOF
-
-pkexec mkdir -p "$ROOTFS/usr/share/polkit-1/rules.d"
-cat <<EOF | pkexec tee "$ROOTFS/usr/share/polkit-1/rules.d/calamares.rules" > /dev/null
+pkexec mkdir -p "$ROOTFS/etc/polkit-1/rules.d"
+cat <<EOF | pkexec tee "$ROOTFS/etc/polkit-1/rules.d/49-nopasswd-calamares.rules" > /dev/null
 polkit.addRule(function(action, subject) {
-    if (action.id == "org.debian.pkexec.calamares" && subject.isInGroup("sudo")) {
+    if (action.id == "com.github.calamares.calamares.pkexec.run" && subject.isInGroup("sudo")) {
         return polkit.Result.YES;
     }
 });
