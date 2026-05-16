@@ -122,5 +122,48 @@ pkexec rm -f "$ROOTFS/tmp/appinstall.deb"
 echo "Estableciendo Firefox como predeterminado..."
 pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --set x-www-browser /usr/bin/firefox-esr
 
+# --- Configuración de Idiomas (Locales) ---
+echo "Configurando idiomas (Locales)..."
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "echo 'es_ES.UTF-8 UTF-8' >> /etc/locale.gen"
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen"
+pkexec /usr/sbin/chroot "$ROOTFS" locale-gen
+echo "LANG=es_ES.UTF-8" | pkexec tee "$ROOTFS/etc/default/locale"
+
+# --- Renombrar Aplicaciones (Estilo macOS) ---
+echo "Renombrando aplicaciones para mayor claridad..."
+
+rename_app() {
+    local desktop_file="$1"
+    local new_name_en="$2"
+    local new_name_es="$3"
+    
+    local path="$ROOTFS/usr/share/applications/$desktop_file"
+    if [ -f "$path" ]; then
+        pkexec sed -i "s/^Name=.*/Name=$new_name_en/" "$path"
+        # Añadir traducción al español si no existe, o actualizarla
+        if grep -q "^Name\[es\]=" "$path"; then
+            pkexec sed -i "s/^Name\[es\]=.*/Name\[es\]=$new_name_es/" "$path"
+        else
+            echo "Name[es]=$new_name_es" | pkexec tee -a "$path" > /dev/null
+        fi
+    fi
+}
+
+# Lista de aplicaciones a renombrar
+rename_app "io.bassi.Amberol.desktop" "Music" "Música"
+rename_app "org.gnome.Geary.desktop" "Mail" "Correo"
+rename_app "com.github.xournalpp.xournalpp.desktop" "Whiteboard" "Pizarra"
+rename_app "org.gnome.Loupe.desktop" "Photos" "Fotos"
+rename_app "org.gnome.Calculator.desktop" "Calculator" "Calculadora"
+rename_app "org.gnome.Calendar.desktop" "Calendar" "Calendario"
+rename_app "org.gnome.Weather.desktop" "Weather" "Tiempo"
+rename_app "org.gnome.clocks.desktop" "Clock" "Reloj"
+rename_app "org.gnome.Music.desktop" "Music (Legacy)" "Música (Antigua)"
+rename_app "org.gnome.font-viewer.desktop" "Fonts" "Tipografías"
+rename_app "org.gnome.DiskUtility.desktop" "Disks" "Discos"
+rename_app "gnome-system-monitor.desktop" "Activity Monitor" "Monitor de Actividad"
+rename_app "org.gnome.Logs.desktop" "Logs" "Registros"
+rename_app "org.gnome.Nautilus.desktop" "Files" "Archivos"
+
 # --- Finalización ---
 echo "Personalización completada."

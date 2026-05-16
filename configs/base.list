@@ -82,6 +82,11 @@ amberol
 endeavour
 gnome-clocks
 gnome-weather
+# Utilidades de Sistema
+gnome-disk-utility
+gnome-system-monitor
+gnome-logs
+locales
 # Aceleración QEMU/VirGL
 libgl1-mesa-dri
 libvirglrenderer1
