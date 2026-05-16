@@ -100,20 +100,9 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./inst
 
 # Instalación de Fildem HUD
 echo "Instalando Fildem HUD (App y Extension)..."
-# SHIM: Crear un pkexec falso en el chroot para evitar fallos (ya somos root)
-cat <<'EOF' | pkexec tee "$ROOTFS/usr/local/bin/pkexec" > /dev/null
-#!/bin/bash
-"$@"
-EOF
-pkexec chmod +x "$ROOTFS/usr/local/bin/pkexec"
-pkexec cp "$ROOTFS/usr/local/bin/pkexec" "$ROOTFS/usr/local/bin/sudo"
+# PARCHE: Corregir instalación de Fildem usando setup.py correctamente
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && python3 setup.py install"
 
-# Parchear el script para evitar fallos de apt y systemd en chroot
-pkexec sed -i '/pkexec apt/,/appmenu-gtk3-module/ s/^/# /' "$ROOTFS/tmp/Fildem/install_app.sh"
-pkexec sed -i '/pkexec apt install -y appmenu-gtk2-module/ s/^/# /' "$ROOTFS/tmp/Fildem/install_app.sh"
-pkexec sed -i 's/systemctl --user/# systemctl --user/g' "$ROOTFS/tmp/Fildem/install_app.sh"
-
-pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && ./install_app.sh"
 # Asegurar que el binario de fildem sea reconocido forzando un symlink si es necesario
 pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem /usr/bin/fildem || true
 pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem-hud /usr/bin/fildem-hud || true
@@ -122,9 +111,6 @@ pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem-hud /usr/bin/fild
 pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es"
 pkexec cp -r "$ROOTFS/tmp/Fildem/fildem@inled.es/"* "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es/"
 pkexec /usr/sbin/chroot "$ROOTFS" glib-compile-schemas "/usr/share/gnome-shell/extensions/fildem@inled.es/schemas/"
-
-# Eliminar shims
-pkexec rm -f "$ROOTFS/usr/local/bin/pkexec" "$ROOTFS/usr/local/bin/sudo"
 
 # Configurar GTK Modules para Fildem (Global)
 echo "Configurando GTK Modules para Fildem..."
@@ -253,7 +239,9 @@ background-opacity=0.2
 custom-theme-shrink=true
 show-apps-at-top=true
 show-trash=true
-
+# Habilitar el anclaje y movimiento de iconos
+move-to-monitor=true
+EOF
 [org.gnome.shell.extensions.just-perfection]
 activities-button=false
 app-menu=false
@@ -333,7 +321,7 @@ enabled-extensions=$EXTENSIONS_LIST
 favorite-apps=$FAVORITES_LIST
 disable-extension-version-validation=true
 
-[org/gnome/shell/extensions/dash-to-dock]
+[org.gnome.shell.extensions.dash-to-dock]
 dock-position='BOTTOM'
 extend-height=false
 dash-max-icon-size=48
@@ -346,7 +334,9 @@ background-opacity=0.2
 custom-theme-shrink=true
 show-apps-at-top=true
 show-trash=true
-
+# Habilitar el anclaje y movimiento de iconos
+move-to-monitor=true
+EOF
 [org/gnome/shell/extensions/just-perfection]
 activities-button=false
 app-menu=false
