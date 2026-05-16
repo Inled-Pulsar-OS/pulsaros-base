@@ -101,7 +101,8 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe-Icons && ./inst
 # Instalación de Fildem HUD
 echo "Instalando Fildem HUD (App y Extension)..."
 # PARCHE: Corregir bug de detección de Wayland en Fildem que provoca crash si las variables no están seteadas
-sed -i "s/return 'wayland' in (disp or type)/return 'wayland' in (disp or type or '')/" "$ROOTFS/tmp/Fildem/fildem/utils/wayland.py"
+pkexec sed -i "s/return 'wayland' in (disp or type)/return 'wayland' in (disp or type or '')/" "$ROOTFS/tmp/Fildem/fildem/utils/wayland.py"
+pkexec sed -i "s/os.environ\['XDG_SESSION_TYPE'\]/os.environ.get('XDG_SESSION_TYPE', '')/g" "$ROOTFS/tmp/Fildem/fildem/run.py"
 
 # PARCHE: Corregir instalación de Fildem usando setup.py correctamente
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && python3 setup.py install"
@@ -196,6 +197,7 @@ EGO_EXTENSIONS=(
     "blur-my-shell@aunetx"
     "dash-to-dock@micxgx.gmail.com"
     "user-theme@gnome-shell-extensions.gcampax.github.com"
+    "appmenu-is-back@fthx"
     "just-perfection-desktop@just-perfection"
     "appindicatorsupport@rgcjonas.gmail.com"
 )
@@ -208,7 +210,7 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
 # Priorizamos fildem@inled.es
-EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appmenu-is-back@fthx', 'appindicatorsupport@rgcjonas.gmail.com']"
 FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Geary.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Calculator.desktop', 'com.github.xournalpp.xournalpp.desktop', 'org.gnome.Loupe.desktop', 'io.bassi.Amberol.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Software.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"

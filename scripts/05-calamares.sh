@@ -56,9 +56,6 @@ style:
    sidebarTextSelect:    "#88c0d0"
    sidebarTextHighlight: "#5e81ac"
 
-slideshow:               "show.qml"
-
-slideshowAPI: 2
 EOF
 
 # 3. Descargar o generar imágenes de branding
@@ -121,11 +118,11 @@ pkexec mkdir -p "$AUTOSTART_DIR"
 # Script wrapper para Wayland
 cat <<'EOF' | pkexec tee "$ROOTFS/usr/local/bin/launch-calamares" > /dev/null
 #!/bin/bash
-# Permitir conexiones X11 locales para root (necesario para pkexec GUI en Wayland)
+# Permitir conexiones X11 locales para root (necesario para GUI en Wayland)
 xhost +local:root > /dev/null 2>&1 || true
 
-# Ejecutar calamares con variables de entorno preservadas
-pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" calamares "$@"
+# Ejecutar calamares con sudo preservando variables (mucho más fiable que pkexec)
+sudo -E DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" calamares "$@"
 EOF
 pkexec chmod +x "$ROOTFS/usr/local/bin/launch-calamares"
 
