@@ -2,7 +2,17 @@
 set -e
 ROOTFS="$(realpath -m build/rootfs)"
 GRUB_THEME_REPO="https://github.com/Inled-Pulsar-OS/grub.theme"
-BUILD_DIR="build/themes"
+BUILD_DIR="$(realpath -m build/themes)"
+
+# Función de limpieza para asegurar desmontaje
+cleanup() {
+    echo "🧹 Finalizando y liberando recursos..."
+    pkexec umount -l "$ROOTFS/proc" || true
+    pkexec umount -l "$ROOTFS/sys" || true
+    pkexec umount -l "$ROOTFS/dev/pts" || true
+    pkexec umount -l "$ROOTFS/dev" || true
+}
+trap cleanup EXIT INT TERM
 
 echo "🎨 Instalando Tema de GRUB Pulsar OS..."
 
@@ -38,13 +48,6 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "
     
     rm /usr/local/bin/grub-probe
 "
-
-# --- Desmontar ---
-echo "Desmontando sistemas de archivos..."
-pkexec umount -l "$ROOTFS/proc" || true
-pkexec umount -l "$ROOTFS/sys" || true
-pkexec umount -l "$ROOTFS/dev/pts" || true
-pkexec umount -l "$ROOTFS/dev" || true
 
 # 3. Limpiar
 pkexec rm -rf "$ROOTFS/tmp/grub-theme"

@@ -6,6 +6,16 @@ ICONS_REPO="https://github.com/Inled-Pulsar-OS/MacTahoe-icon-theme"
 FILDEM_REPO="https://github.com/InledGroup/Fildem"
 BUILD_DIR="$(realpath -m build/themes)"
 
+# Función de limpieza para asegurar desmontaje
+cleanup() {
+    echo "🧹 Finalizando y liberando recursos..."
+    pkexec umount -l "$ROOTFS/proc" || true
+    pkexec umount -l "$ROOTFS/sys" || true
+    pkexec umount -l "$ROOTFS/dev/pts" || true
+    pkexec umount -l "$ROOTFS/dev" || true
+}
+trap cleanup EXIT INT TERM
+
 echo "🎨 Configurando Tema MacTahoe, Iconos, GDM y Fildem HUD..."
 
 # 1. Clonar repositorios si no existen
@@ -405,13 +415,7 @@ EOF
 
 pkexec /usr/sbin/chroot "$ROOTFS" dconf update
 
-# --- Desmontar sistemas de archivos virtuales ---
-echo "Desmontando sistemas de archivos virtuales..."
-pkexec umount -l "$ROOTFS/proc" || true
-pkexec umount -l "$ROOTFS/sys" || true
-pkexec umount -l "$ROOTFS/dev/pts" || true
-pkexec umount -l "$ROOTFS/dev" || true
-
+# --- Finalización ---
 echo "Limpiando archivos temporales..."
 pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons" "$ROOTFS/tmp/Fildem"
 echo "✅ Pulsar OS Personalizado."

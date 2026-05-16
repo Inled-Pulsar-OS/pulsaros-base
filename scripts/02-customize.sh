@@ -7,6 +7,21 @@ if [ ! -d "$ROOTFS/etc" ]; then
     exit 1
 fi
 
+# Función de limpieza para asegurar desmontaje
+cleanup() {
+    echo "🧹 Finalizando y liberando recursos..."
+    pkexec umount -l "$ROOTFS/proc" || true
+    pkexec umount -l "$ROOTFS/sys" || true
+    pkexec umount -l "$ROOTFS/dev/pts" || true
+    pkexec umount -l "$ROOTFS/dev" || true
+    
+    # Restaurar DNS original tras la instalación si quedó el backup
+    if [ -f "$ROOTFS/etc/resolv.conf.bak" ]; then
+        pkexec mv "$ROOTFS/etc/resolv.conf.bak" "$ROOTFS/etc/resolv.conf" || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 echo "--- Personalizando Distro (Branding) ---"
 
 # Establecer nombre del host
@@ -31,7 +46,6 @@ EOF
 # Establecer contraseñas
 echo "Configurando contraseñas..."
 # Usamos un hash pre-generado para 'pulsar' para evitar fallos de PAM en chroot
-# El hash de 'pulsar' es $6$rounds=4096$salt$Z.X.Z. (ejemplo simplificado, mejor usar chpasswd con --root si disponible)
 echo "root:pulsar" | pkexec /usr/sbin/chroot "$ROOTFS" chpasswd || echo "Fallo chpasswd root, continuando..."
 
 # Crear usuario 'jaime' si no existe
@@ -79,6 +93,12 @@ pkexec mount -t sysfs sys "$ROOTFS/sys" || true
 pkexec mount --bind /dev "$ROOTFS/dev" || true
 pkexec mount --bind /dev/pts "$ROOTFS/dev/pts" || true
 
+# Solución temporal para DNS (especialmente con VPN/WARP)
+if [ -f "$ROOTFS/etc/resolv.conf" ]; then
+    pkexec cp "$ROOTFS/etc/resolv.conf" "$ROOTFS/etc/resolv.conf.bak"
+fi
+echo "nameserver 8.8.8.8" | pkexec tee "$ROOTFS/etc/resolv.conf" > /dev/null
+
 # --- Instalación de Software Adicional ---
 echo "--- Instalando Software Adicional (Flatpak, AppInstall) ---"
 
@@ -102,11 +122,5 @@ pkexec rm -f "$ROOTFS/tmp/appinstall.deb"
 echo "Estableciendo Firefox como predeterminado..."
 pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --set x-www-browser /usr/bin/firefox-esr
 
-# --- Desmontar sistemas de archivos virtuales ---
-echo "Desmontando sistemas de archivos virtuales..."
-pkexec umount -l "$ROOTFS/proc" || true
-pkexec umount -l "$ROOTFS/sys" || true
-pkexec umount -l "$ROOTFS/dev/pts" || true
-pkexec umount -l "$ROOTFS/dev" || true
-
+# --- Finalización ---
 echo "Personalización completada."

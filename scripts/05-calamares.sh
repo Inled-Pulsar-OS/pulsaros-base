@@ -2,6 +2,16 @@
 set -e
 ROOTFS="$(realpath -m build/rootfs)"
 
+# Función de limpieza para asegurar desmontaje
+cleanup() {
+    echo "🧹 Finalizando y liberando recursos..."
+    pkexec umount -l "$ROOTFS/proc" || true
+    pkexec umount -l "$ROOTFS/sys" || true
+    pkexec umount -l "$ROOTFS/dev/pts" || true
+    pkexec umount -l "$ROOTFS/dev" || true
+}
+trap cleanup EXIT INT TERM
+
 echo "--- Configurando Calamares Personalizado para PulsarOS ---"
 
 # --- Preparar entorno (Mounts) ---
@@ -146,11 +156,5 @@ polkit.addRule(function(action, subject) {
 });
 EOF
 
-# --- Desmontar ---
-echo "Desmontando sistemas de archivos..."
-pkexec umount -l "$ROOTFS/proc" || true
-pkexec umount -l "$ROOTFS/sys" || true
-pkexec umount -l "$ROOTFS/dev/pts" || true
-pkexec umount -l "$ROOTFS/dev" || true
-
+# --- Finalización ---
 echo "✅ Calamares configurado y listo para el entorno Live."

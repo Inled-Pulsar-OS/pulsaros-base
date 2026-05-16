@@ -12,6 +12,21 @@ if [ "$1" == "--clean" ]; then
     pkexec rm -rf "$PARENT_DIR"
 fi
 
+# Función de limpieza para asegurar desmontaje
+cleanup() {
+    echo "🧹 Finalizando y liberando recursos..."
+    pkexec umount -l "$OUTPUT_DIR/proc" || true
+    pkexec umount -l "$OUTPUT_DIR/sys" || true
+    pkexec umount -l "$OUTPUT_DIR/dev/pts" || true
+    pkexec umount -l "$OUTPUT_DIR/dev" || true
+    
+    # Restaurar DNS si quedó el backup
+    if [ -f "$OUTPUT_DIR/etc/resolv.conf.bak" ]; then
+        pkexec mv "$OUTPUT_DIR/etc/resolv.conf.bak" "$OUTPUT_DIR/etc/resolv.conf" || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # Comprobar si ya existe para sincronizar paquetes (Construcción Incremental)
 if [ -d "$OUTPUT_DIR/etc" ]; then
     echo "--- Rootfs detectado. Sincronizando paquetes (Modo Incremental) ---"
@@ -26,15 +41,15 @@ if [ -d "$OUTPUT_DIR/etc" ]; then
     pkexec mount --bind /dev "$OUTPUT_DIR/dev" || true
     pkexec mount --bind /dev/pts "$OUTPUT_DIR/dev/pts" || true
 
+    # Solución temporal para DNS (especialmente con VPN/WARP)
+    if [ -f "$OUTPUT_DIR/etc/resolv.conf" ]; then
+        pkexec cp "$OUTPUT_DIR/etc/resolv.conf" "$OUTPUT_DIR/etc/resolv.conf.bak"
+    fi
+    echo "nameserver 8.8.8.8" | pkexec tee "$OUTPUT_DIR/etc/resolv.conf" > /dev/null
+
     pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get update
     pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get install -y $PACKAGE_LIST_SPACE
     
-    # Desmontar al terminar
-    pkexec umount -l "$OUTPUT_DIR/proc" || true
-    pkexec umount -l "$OUTPUT_DIR/sys" || true
-    pkexec umount -l "$OUTPUT_DIR/dev/pts" || true
-    pkexec umount -l "$OUTPUT_DIR/dev" || true
-
     echo "Sincronización completada."
     exit 0
 fi

@@ -6,6 +6,9 @@ mkdir -p build
 
 echo "🚀 Iniciando construcción de PulsarOS..."
 
+# Limpieza preventiva de montajes residuales
+bash scripts/cleanup.sh
+
 # 1. Bootstrap
 bash scripts/01-bootstrap.sh
 

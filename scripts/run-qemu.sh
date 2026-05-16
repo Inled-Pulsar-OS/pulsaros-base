@@ -24,15 +24,17 @@ echo "🧹 Limpiando procesos previos de QEMU y liberando puerto VNC (5900)..."
 pkexec fuser -k 5900/tcp 2>/dev/null || true
 sleep 1
 
-# Detectar Arquitectura
+# Detectar Arquitectura y establecer consola
 HOST_ARCH=$(uname -m)
 case "$HOST_ARCH" in
     x86_64)
         QEMU_BIN="qemu-system-x86_64"
         ACCEL="-enable-kvm -cpu host"
+        CONSOLE="tty0 console=ttyS0"
         ;;
     aarch64|arm64)
         QEMU_BIN="qemu-system-aarch64"
+        CONSOLE="ttyAMA0"
         # En una VM de Linux en Mac (M-series), usamos KVM si está disponible
         if [ -e /dev/kvm ]; then
             ACCEL="-enable-kvm -cpu host"
@@ -45,6 +47,7 @@ case "$HOST_ARCH" in
     *)
         QEMU_BIN="qemu-system-x86_64"
         ACCEL=""
+        CONSOLE="tty0"
         ;;
 esac
 
@@ -65,7 +68,7 @@ pkexec env \
     $ACCEL \
     -kernel "$KERNEL" \
     -initrd "$INITRD" \
-    -append "root=rootfs rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L,msize=262144 console=ttyAMA0 loglevel=7" \
+    -append "root=rootfs rw rootfstype=9p rootflags=trans=virtio,version=9p2000.L,msize=262144 console=$CONSOLE loglevel=7" \
     -fsdev local,id=rootfs,path="$ROOTFS",security_model=passthrough \
     -device virtio-9p-pci,fsdev=rootfs,mount_tag=rootfs \
     -device virtio-vga-gl \
