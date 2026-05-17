@@ -58,6 +58,10 @@ gnome-shell-extension-appindicator
 # Dependencias Fildem HUD
 python3-gi
 python3-dbus
+gir1.2-bamf-3
+gir1.2-keybinder-3.0
+gir1.2-gtk-3.0
+gir1.2-glib-2.0
 bamfdaemon
 libbamf3-dev
 libkeybinder-3.0-dev

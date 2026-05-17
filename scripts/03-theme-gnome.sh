@@ -140,19 +140,12 @@ for TARGET in "/etc/skel" "/home/jaime"; do
     pkexec cp "$ROOTFS/etc/gtk-2.0/gtkrc" "$ROOTFS$TARGET/.gtkrc-2.0"
 done
 
-# Configurar Autostart para Fildem
-echo "Configurando autostart para Fildem..."
-pkexec mkdir -p "$ROOTFS/etc/xdg/autostart"
-cat <<EOF | pkexec tee "$ROOTFS/etc/xdg/autostart/fildem.desktop"
-[Desktop Entry]
-Type=Application
-Exec=fildem
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Name=Fildem HUD
-Comment=Global Menu and HUD
-EOF
+# Configurar variable de entorno global para GTK_MODULES
+echo "Configurando GTK_MODULES globalmente en /etc/environment..."
+pkexec bash -c 'grep -q "GTK_MODULES" "$1/etc/environment" || echo "GTK_MODULES=appmenu-gtk-module" >> "$1/etc/environment"' _ "$ROOTFS"
+
+# Se elimina el Autostart Desktop duplicado porque ya se configuró el servicio systemd de usuario.
+# Esto evita que la aplicación Fildem se inicie dos veces y cause conflictos.
 
 # FIX AGRESIVO PARA LIBADWAITA (GTK4)
 echo "Distribuyendo fix agresivo de Libadwaita (GTK4)..."
@@ -210,7 +203,7 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
 # Priorizamos fildem@inled.es
-EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appmenu-is-back@fthx', 'appindicatorsupport@rgcjonas.gmail.com']"
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
 FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Geary.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Calculator.desktop', 'com.github.xournalpp.xournalpp.desktop', 'org.gnome.Loupe.desktop', 'io.bassi.Amberol.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Software.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
@@ -418,3 +411,4 @@ pkexec /usr/sbin/chroot "$ROOTFS" dconf update
 echo "Limpiando archivos temporales..."
 pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons" "$ROOTFS/tmp/Fildem"
 echo "✅ Pulsar OS Personalizado."
+� Pulsar OS Personalizado."

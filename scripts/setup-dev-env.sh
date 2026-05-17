@@ -22,7 +22,8 @@ sudo apt install -y \
     qemu-utils \
     ovmf \
     qemu-efi-aarch64 \
-    policykit-1 \
+    polkitd \
+    pkexec \
     jq
 
 # 3. Dependencias para Temas GNOME (Sassc, Glib, etc.)
@@ -38,6 +39,10 @@ echo "Instalando dependencias de Fildem HUD..."
 sudo apt install -y \
     python3-gi \
     python3-dbus \
+    gir1.2-bamf-3 \
+    gir1.2-keybinder-3.0 \
+    gir1.2-gtk-3.0 \
+    gir1.2-glib-2.0 \
     python3-setuptools \
     python3-pip \
     python3-xlib \
