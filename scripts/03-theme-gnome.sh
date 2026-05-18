@@ -390,6 +390,10 @@ sigma=30
 [org/gnome/shell/extensions/blur-my-shell/window-list]
 brightness=0.6
 sigma=30
+
+[org/gnome/shell/extensions/fildem-global-menu]
+hide-app-menu=false
+show-only-when-hover=false
 EOF
 
 pkexec /usr/sbin/chroot "$ROOTFS" dconf update
@@ -411,4 +415,4 @@ pkexec /usr/sbin/chroot "$ROOTFS" dconf update
 echo "Limpiando archivos temporales..."
 pkexec rm -rf "$ROOTFS/tmp/MacTahoe" "$ROOTFS/tmp/MacTahoe-Icons" "$ROOTFS/tmp/Fildem"
 echo "✅ Pulsar OS Personalizado."
-� Pulsar OS Personalizado."
+
