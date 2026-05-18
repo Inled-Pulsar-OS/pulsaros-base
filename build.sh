@@ -4,6 +4,11 @@ set -e
 # Asegurar que el directorio build existe
 mkdir -p build
 
+if [ "$1" == "--clean" ]; then
+    echo "🧹 Limpiando directorio build..."
+    pkexec rm -rf build/*
+fi
+
 echo "🚀 Iniciando construcción de PulsarOS..."
 
 # Limpieza preventiva de montajes residuales
@@ -23,6 +28,9 @@ bash scripts/04-grub-theme.sh
 
 # 5. Calamares y Auto-instalador
 bash scripts/05-calamares.sh
+
+# 6. Plymouth Theme
+bash scripts/06-plymouth.sh
 
 echo "✅ Proceso finalizado."
 echo "Para probar la distro, ejecuta: ./scripts/run-qemu.sh"
