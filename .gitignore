@@ -15,3 +15,4 @@ build/
 # Cache de paquetes (si se usa localmente)
 apt-cache/
 fildem/
+calamares/

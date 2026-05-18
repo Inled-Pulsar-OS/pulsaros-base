@@ -55,9 +55,31 @@ if ! pkexec /usr/sbin/chroot "$ROOTFS" id -u jaime >/dev/null 2>&1; then
 fi
 echo "jaime:pulsar" | pkexec /usr/sbin/chroot "$ROOTFS" chpasswd || echo "Fallo chpasswd jaime, continuando..."
 
-# Configurar sudo
+# Crear usuario 'live' si no existe
+if ! pkexec /usr/sbin/chroot "$ROOTFS" id -u live >/dev/null 2>&1; then
+    echo "Creando usuario 'live'..."
+    pkexec /usr/sbin/chroot "$ROOTFS" useradd -m -s /bin/bash -G sudo live
+fi
+echo "live:live" | pkexec /usr/sbin/chroot "$ROOTFS" chpasswd || echo "Fallo chpasswd live, continuando..."
+
+# Configurar sudo sin contraseña para jaime y live
+echo "Configurando sudo sin contraseña..."
 echo "jaime ALL=(ALL) NOPASSWD:ALL" | pkexec tee "$ROOTFS/etc/sudoers.d/jaime"
+echo "live ALL=(ALL) NOPASSWD:ALL" | pkexec tee "$ROOTFS/etc/sudoers.d/live"
 pkexec chmod 0440 "$ROOTFS/etc/sudoers.d/jaime"
+pkexec chmod 0440 "$ROOTFS/etc/sudoers.d/live"
+
+# Configurar Polkit para pkexec sin contraseña (passthrough) para el grupo sudo
+echo "Configurando reglas de Polkit para pkexec instantáneo..."
+pkexec mkdir -p "$ROOTFS/etc/polkit-1/rules.d"
+cat <<EOF | pkexec tee "$ROOTFS/etc/polkit-1/rules.d/90-pulsaros-nopasswd.rules"
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        subject.isInGroup("sudo")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
 
 # Modificar PAM para permitir passwords simples (opcional pero ayuda en desarrollo)
 pkexec sed -i 's/nullok_secure/nullok/' "$ROOTFS/etc/pam.d/common-auth" || true
@@ -68,12 +90,12 @@ pkexec /usr/sbin/chroot "$ROOTFS" systemctl disable getty@ttyS0.service || true
 pkexec /usr/sbin/chroot "$ROOTFS" systemctl mask getty@ttyS0.service || true
 
 # Configurar Autologin Gráfico en GDM3
-echo "Configurando autologin gráfico para jaime..."
+echo "Configurando autologin gráfico para live..."
 pkexec mkdir -p "$ROOTFS/etc/gdm3"
 cat <<EOF | pkexec tee "$ROOTFS/etc/gdm3/daemon.conf"
 [daemon]
 AutomaticLoginEnable=true
-AutomaticLogin=jaime
+AutomaticLogin=live
 EOF
 
 

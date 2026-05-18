@@ -43,10 +43,10 @@ pkexec cp -r "$BUILD_DIR/MacTahoe" "$ROOTFS/tmp/"
 pkexec cp -r "$BUILD_DIR/MacTahoe-Icons" "$ROOTFS/tmp/"
 pkexec cp -r "$BUILD_DIR/Fildem" "$ROOTFS/tmp/"
 
-# Asegurar que el usuario jaime (UID 1000) puede leer los archivos temporales
-pkexec chown -R 1000:1000 "$ROOTFS/tmp/MacTahoe"
-pkexec chown -R 1000:1000 "$ROOTFS/tmp/MacTahoe-Icons"
-pkexec chown -R 1000:1000 "$ROOTFS/tmp/Fildem"
+# Asegurar que los usuarios pueden leer los archivos temporales
+pkexec chmod -R 777 "$ROOTFS/tmp/MacTahoe"
+pkexec chmod -R 777 "$ROOTFS/tmp/MacTahoe-Icons"
+pkexec chmod -R 777 "$ROOTFS/tmp/Fildem"
 
 # --- Preparar entorno (Mounts) ---
 echo "Montando sistemas de archivos virtuales..."
@@ -68,7 +68,7 @@ echo "Aplicando GDM tweaks..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh -g --silent-mode"
 
 echo "Preparando perfiles de Firefox para el tema MacTahoe..."
-for USER_HOME in "/root" "/home/jaime" "/etc/skel"; do
+for USER_HOME in "/root" "/home/jaime" "/home/live" "/etc/skel"; do
     pkexec mkdir -p "$ROOTFS$USER_HOME/.mozilla/firefox/pulsar.default"
     cat <<EOF | pkexec tee "$ROOTFS$USER_HOME/.mozilla/firefox/profiles.ini" > /dev/null
 [General]
@@ -81,7 +81,8 @@ Path=pulsar.default
 Default=1
 EOF
 done
-pkexec chown -R 1000:1000 "$ROOTFS/home/jaime/.mozilla"
+pkexec /usr/sbin/chroot "$ROOTFS" chown -R jaime:jaime /home/jaime/.mozilla || true
+pkexec /usr/sbin/chroot "$ROOTFS" chown -R live:live /home/live/.mozilla || true
 
 # PARCHE: Eliminar la llamada a full_sudo que bloquea el modo silent en chroot
 pkexec sed -i 's/full_sudo "${1}"; silent_mode/silent_mode/g' "$ROOTFS/tmp/MacTahoe/tweaks.sh"
@@ -133,8 +134,8 @@ EOF
 pkexec mkdir -p "$ROOTFS/etc/gtk-2.0"
 echo 'gtk-modules="appmenu-gtk-module"' | pkexec tee "$ROOTFS/etc/gtk-2.0/gtkrc"
 
-# Replicar en skel y home/jaime
-for TARGET in "/etc/skel" "/home/jaime"; do
+# Replicar en skel y home
+for TARGET in "/etc/skel" "/home/jaime" "/home/live"; do
     pkexec mkdir -p "$ROOTFS$TARGET/.config/gtk-3.0"
     pkexec cp "$ROOTFS/etc/gtk-3.0/settings.ini" "$ROOTFS$TARGET/.config/gtk-3.0/settings.ini"
     pkexec cp "$ROOTFS/etc/gtk-2.0/gtkrc" "$ROOTFS$TARGET/.gtkrc-2.0"
@@ -149,12 +150,13 @@ pkexec bash -c 'grep -q "GTK_MODULES" "$1/etc/environment" || echo "GTK_MODULES=
 
 # FIX AGRESIVO PARA LIBADWAITA (GTK4)
 echo "Distribuyendo fix agresivo de Libadwaita (GTK4)..."
-for TARGET in "/etc/skel" "/home/jaime"; do
+for TARGET in "/etc/skel" "/home/jaime" "/home/live"; do
     pkexec mkdir -p "$ROOTFS$TARGET/.config/gtk-4.0"
     pkexec cp -rf "$ROOTFS/usr/share/themes/MacTahoe-Dark/gtk-4.0/"* "$ROOTFS$TARGET/.config/gtk-4.0/" 2>/dev/null || true
     pkexec cp -rf "$ROOTFS/root/.config/gtk-4.0/"* "$ROOTFS$TARGET/.config/gtk-4.0/" 2>/dev/null || true
 done
-pkexec chown -R 1000:1000 "$ROOTFS/home/jaime/.config"
+pkexec /usr/sbin/chroot "$ROOTFS" chown -R jaime:jaime /home/jaime/.config || true
+pkexec /usr/sbin/chroot "$ROOTFS" chown -R live:live /home/live/.config || true
 
 # --- SISTEMA DE DESCARGA DE EXTENSIONES DESDE extensions.gnome.org ---
 GNOME_VER=$(pkexec /usr/sbin/chroot "$ROOTFS" gnome-shell --version | cut -d' ' -f3 | cut -d'.' -f1)
@@ -193,6 +195,7 @@ EGO_EXTENSIONS=(
     "appmenu-is-back@fthx"
     "just-perfection-desktop@just-perfection"
     "appindicatorsupport@rgcjonas.gmail.com"
+    "notification-position@drugo.dev"
 )
 for uuid in "${EGO_EXTENSIONS[@]}"; do install_extension_ego "$uuid"; done
 
@@ -203,7 +206,7 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/exte
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
 # Priorizamos fildem@inled.es
-EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com']"
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com', 'notification-position@drugo.dev']"
 FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Geary.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Calculator.desktop', 'com.github.xournalpp.xournalpp.desktop', 'org.gnome.Loupe.desktop', 'io.bassi.Amberol.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Software.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
@@ -211,6 +214,11 @@ cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.o
 enabled-extensions=$EXTENSIONS_LIST
 favorite-apps=$FAVORITES_LIST
 disable-extension-version-validation=true
+
+[org.gnome.shell.extensions.notification-position]
+position='top-right'
+show-indicator=false
+vertical-margin=10
 
 [org.gnome.desktop.background]
 picture-uri='file:///usr/share/backgrounds/pulsar-os-tahoe.png'
