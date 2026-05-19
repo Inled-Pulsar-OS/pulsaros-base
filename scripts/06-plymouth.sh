@@ -18,9 +18,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "--- Instalando y Configurando Pulsar Plymouth Theme ---"
+echo "--- Instalando Pulsar Plymouth Theme (Desde Repo Oficial) ---"
 
-# 1. Clonar el tema si no existe
+# 1. Clonar o Actualizar el tema
 mkdir -p "$BUILD_DIR"
 if [ -d "$BUILD_DIR/plymouth-theme" ]; then
     echo "Actualizando repositorio del tema Plymouth..."
@@ -37,6 +37,12 @@ PLYMOUTH_THEME_DEST="$ROOTFS/usr/share/plymouth/themes/pulsar-plymouth"
 pkexec mkdir -p "$PLYMOUTH_THEME_DEST"
 pkexec cp -r "$BUILD_DIR/plymouth-theme/." "$PLYMOUTH_THEME_DEST/"
 
+# Asegurar que header-image.png esté en la carpeta images/ (el módulo two-step lo busca allí)
+# Aunque ya lo hemos corregido en el repo, esto lo hace robusto
+if [ -f "$PLYMOUTH_THEME_DEST/header-image.png" ]; then
+    pkexec mv "$PLYMOUTH_THEME_DEST/header-image.png" "$PLYMOUTH_THEME_DEST/images/header-image.png"
+fi
+
 # --- Preparar entorno (Mounts) ---
 echo "Montando sistemas de archivos virtuales..."
 pkexec mount -t proc proc "$ROOTFS/proc" || true
@@ -45,7 +51,7 @@ pkexec mount --bind /dev "$ROOTFS/dev" || true
 pkexec mount --bind /dev/pts "$ROOTFS/dev/pts" || true
 
 # 3. Configurar el tema como predeterminado
-echo "Configurando Pulsar Plymouth Theme como predeterminado..."
+echo "Configurando Pulsar Plymouth Theme..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c '
     export PATH=$PATH:/usr/sbin
     # Instalar plymouth y sus plugins necesarios
@@ -56,27 +62,24 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c '
     mkdir -p /etc/plymouth
     echo -e "[Daemon]\nTheme=pulsar-plymouth\nShowDelay=0\nDeviceTimeout=8" > /etc/plymouth/plymouthd.conf
     
-    # Verificar si el plugin two-step existe
+    # Verificar si el plugin two-step existe (diagnóstico vital)
     if [ ! -f "/usr/lib/x86_64-linux-gnu/plymouth/two-step.so" ] && [ ! -f "/usr/lib/plymouth/two-step.so" ]; then
         echo "⚠️ Advertencia: two-step.so no encontrado. El tema podría no funcionar."
     fi
-    
+
     # Registrar el tema en update-alternatives
     update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/pulsar-plymouth/pulsar-plymouth.plymouth 150
     
     # Establecer el tema
-    plymouth-set-default-theme -R pulsar-plymouth || {
-        echo "Aviso: plymouth-set-default-theme falló, configurando manualmente..."
-        update-alternatives --set default.plymouth /usr/share/plymouth/themes/pulsar-plymouth/pulsar-plymouth.plymouth
-    }
-
+    update-alternatives --set default.plymouth /usr/share/plymouth/themes/pulsar-plymouth/pulsar-plymouth.plymouth
+    plymouth-set-default-theme -R pulsar-plymouth || plymouth-set-default-theme pulsar-plymouth
+    
     # Configurar GRUB para que use splash y sea silencioso
     if [ -f "/etc/default/grub" ]; then
-        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/' /etc/default/grub
-        update-grub || echo "Aviso: update-grub falló (esperado en chroot sin dispositivos reales)"
+        sed -i "s/GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash\"/" /etc/default/grub
     fi
     
-    # Forzar actualización de initramfs
+    # Forzar actualización de initramfs (algunas distros no lo hacen con plymouth-set-default-theme)
     if command -v update-initramfs >/dev/null; then
         update-initramfs -u
     fi
@@ -84,4 +87,4 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c '
     apt-get clean
 '
 
-echo "✅ Pulsar Plymouth Theme configurado correctamente."
+echo "✅ Pulsar Plymouth Theme instalado."

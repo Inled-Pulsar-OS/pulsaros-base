@@ -32,5 +32,8 @@ bash scripts/05-calamares.sh
 # 6. Plymouth Theme
 bash scripts/06-plymouth.sh
 
+# 7. Global Branding Extermination
+bash scripts/07-branding.sh
+
 echo "✅ Proceso finalizado."
 echo "Para probar la distro, ejecuta: ./scripts/run-qemu.sh"
