@@ -128,21 +128,67 @@ echo "--- Instalando Software Adicional (Flatpak, AppInstall) ---"
 echo "Configurando Flathub..."
 pkexec /usr/sbin/chroot "$ROOTFS" flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-# 2. Instalar Apps desde Flathub (OnlyOffice y LocalSend)
+# 2. Instalar Brave Browser
+echo "Instalando Brave Browser..."
+pkexec /usr/sbin/chroot "$ROOTFS" curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+pkexec /usr/sbin/chroot "$ROOTFS" curl -fsSLo /etc/apt/sources.list.d/brave-browser-release.sources https://brave-browser-apt-release.s3.brave.com/brave-browser.sources
+pkexec /usr/sbin/chroot "$ROOTFS" apt update
+pkexec /usr/sbin/chroot "$ROOTFS" apt install -y brave-browser
+
+# 3. Instalar Apps desde Flathub (OnlyOffice y LocalSend)
 echo "Instalando OnlyOffice y LocalSend (esto puede tardar)..."
 pkexec /usr/sbin/chroot "$ROOTFS" flatpak install --system -y flathub org.onlyoffice.desktopeditors
 pkexec /usr/sbin/chroot "$ROOTFS" flatpak install --system -y flathub org.localsend.localsend_app
 
-# 3. Descargar e Instalar AppInstall (DEB)
-echo "Instalando AppInstall..."
-APPINSTALL_URL="https://github.com/InledGroup/appinstall/releases/download/v11.0/appinstall_11.0_all.deb"
+# 4. Descargar e Instalar AppInstall (DEB)
+echo "Instalando AppInstall (Latest)..."
+APPINSTALL_URL=$(curl -s https://api.github.com/repos/InledGroup/appinstall/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
 pkexec wget -q -O "$ROOTFS/tmp/appinstall.deb" "$APPINSTALL_URL"
 pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/appinstall.deb
 pkexec rm -f "$ROOTFS/tmp/appinstall.deb"
 
-# 4. Establecer Firefox como navegador predeterminado
-echo "Estableciendo Firefox como predeterminado..."
-pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --set x-www-browser /usr/bin/firefox-esr
+# 5. Descargar e Instalar Spotlight-GTK (DEB)
+echo "Instalando Spotlight-GTK (Latest)..."
+SPOTLIGHT_URL=$(curl -s https://api.github.com/repos/InledGroup/spotlight-gtk/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+pkexec wget -q -O "$ROOTFS/tmp/spotlight.deb" "$SPOTLIGHT_URL"
+pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/spotlight.deb
+pkexec rm -f "$ROOTFS/tmp/spotlight.deb"
+
+# 6. Descargar e Instalar MacBoat (DEB)
+echo "Instalando MacBoat (Latest)..."
+MACBOAT_URL=$(curl -s https://api.github.com/repos/InledGroup/macboat/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+pkexec wget -q -O "$ROOTFS/tmp/macboat.deb" "$MACBOAT_URL"
+pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/macboat.deb
+pkexec rm -f "$ROOTFS/tmp/macboat.deb"
+
+# 7. Descargar e Instalar WinBoat (DEB)
+echo "Instalando WinBoat (Latest)..."
+WINBOAT_URL=$(curl -s https://api.github.com/repos/TibixDev/winboat/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+pkexec wget -q -O "$ROOTFS/tmp/winboat.deb" "$WINBOAT_URL"
+pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/winboat.deb
+pkexec rm -f "$ROOTFS/tmp/winboat.deb"
+
+# 8. Asegurar grupo docker existe
+echo "Asegurando grupo docker..."
+pkexec /usr/sbin/chroot "$ROOTFS" groupadd -f docker
+
+# 9. Establecer Brave como navegador predeterminado y renombrar Firefox a Safari
+echo "Configurando navegadores..."
+# Registrar Brave como alternativa (a veces el paquete no lo hace automáticamente en chroot)
+pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/brave-browser 100
+pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --install /usr/bin/gnome-www-browser gnome-www-browser /usr/bin/brave-browser 100
+pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --set x-www-browser /usr/bin/brave-browser
+pkexec /usr/sbin/chroot "$ROOTFS" update-alternatives --set gnome-www-browser /usr/bin/brave-browser
+
+# Cambiar icono de Firefox a Safari
+if [ -f "$ROOTFS/usr/share/applications/firefox-esr.desktop" ]; then
+    pkexec sed -i 's/^Icon=.*/Icon=safari/' "$ROOTFS/usr/share/applications/firefox-esr.desktop"
+fi
+
+# Cambiar icono de Spotlight a "Aplicaciones Menu" (view-app-grid)
+if [ -f "$ROOTFS/usr/share/applications/spotlight.desktop" ]; then
+    pkexec sed -i 's/^Icon=.*/Icon=view-app-grid/' "$ROOTFS/usr/share/applications/spotlight.desktop"
+fi
 
 # --- Configuración de Idiomas (Locales) ---
 echo "Configurando idiomas (Locales)..."
@@ -172,6 +218,7 @@ rename_app() {
 }
 
 # Lista de aplicaciones a renombrar
+rename_app "firefox-esr.desktop" "Safari" "Safari"
 rename_app "io.bassi.Amberol.desktop" "Music" "Música"
 rename_app "org.gnome.Geary.desktop" "Mail" "Correo"
 rename_app "com.github.xournalpp.xournalpp.desktop" "Whiteboard" "Pizarra"

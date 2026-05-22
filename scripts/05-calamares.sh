@@ -118,6 +118,8 @@ if [ -f "$USERS_CONF_SRC" ]; then
     # Ajustar hostname por defecto y asegurar bash como shell
     pkexec sed -i 's/template: "pearOS-machine"/template: "pulsaros-machine"/g' "$ROOTFS/etc/calamares/modules/users.conf"
     pkexec sed -i 's/shell: \/bin\/zsh/shell: \/bin\/bash/g' "$ROOTFS/etc/calamares/modules/users.conf"
+    # Añadir grupo docker a los grupos por defecto si no está
+    pkexec sed -i 's/defaultGroups:/defaultGroups:\n    - docker/' "$ROOTFS/etc/calamares/modules/users.conf"
 fi
 
 # 4. Configurar settings.conf de Calamares

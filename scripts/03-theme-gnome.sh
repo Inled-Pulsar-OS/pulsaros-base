@@ -69,7 +69,9 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh 
 
 echo "Preparando perfiles de Firefox para el tema MacTahoe..."
 for USER_HOME in "/root" "/home/jaime" "/home/live" "/etc/skel"; do
-    pkexec mkdir -p "$ROOTFS$USER_HOME/.mozilla/firefox/pulsar.default"
+    PROFILE_DIR="$ROOTFS$USER_HOME/.mozilla/firefox/pulsar.default"
+    pkexec rm -rf "$PROFILE_DIR/chrome"
+    pkexec mkdir -p "$PROFILE_DIR/chrome"
     cat <<EOF | pkexec tee "$ROOTFS$USER_HOME/.mozilla/firefox/profiles.ini" > /dev/null
 [General]
 StartWithLastProfile=1
@@ -80,6 +82,15 @@ IsRelative=1
 Path=pulsar.default
 Default=1
 EOF
+    # Inyección manual del tema MacTahoe para Firefox
+    pkexec cp -r "$BUILD_DIR/MacTahoe/other/firefox/MacTahoe" "$PROFILE_DIR/chrome/" || true
+    pkexec cp "$BUILD_DIR/MacTahoe/other/firefox/userChrome.css" "$PROFILE_DIR/chrome/" || true
+    pkexec cp "$BUILD_DIR/MacTahoe/other/firefox/userContent.css" "$PROFILE_DIR/chrome/" || true
+    
+    # Habilitar personalizaciones en user.js
+    echo 'user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);' | pkexec tee "$PROFILE_DIR/user.js" > /dev/null
+    echo 'user_pref("browser.tabs.drawInTitlebar", true);' | pkexec tee -a "$PROFILE_DIR/user.js" > /dev/null
+    echo 'user_pref("browser.uidensity", 0);' | pkexec tee -a "$PROFILE_DIR/user.js" > /dev/null
 done
 pkexec /usr/sbin/chroot "$ROOTFS" chown -R jaime:jaime /home/jaime/.mozilla || true
 pkexec /usr/sbin/chroot "$ROOTFS" chown -R live:live /home/live/.mozilla || true
@@ -88,12 +99,26 @@ pkexec /usr/sbin/chroot "$ROOTFS" chown -R live:live /home/live/.mozilla || true
 pkexec sed -i 's/full_sudo "${1}"; silent_mode/silent_mode/g' "$ROOTFS/tmp/MacTahoe/tweaks.sh"
 
 # PARCHE AGRESIVO: Forzar que el script ignore si Firefox está "inicializado"
-# pkexec sed -i 's/elif \[\[ ! -d "${FIREFOX_DIR_HOME}" && ! -d "${FIREFOX_FLATPAK_DIR_HOME}" && ! -d "${FIREFOX_SNAP_DIR_HOME}" \]\]; then/elif false; then/g' "$ROOTFS/tmp/MacTahoe/tweaks.sh"
+pkexec sed -i 's/elif \[\[ ! -d "${FIREFOX_DIR_HOME}" && ! -d "${FIREFOX_FLATPAK_DIR_HOME}" && ! -d "${FIREFOX_SNAP_DIR_HOME}" \]\]; then/elif false; then/g' "$ROOTFS/tmp/MacTahoe/tweaks.sh"
 
 echo "Aplicando Firefox MacTahoe theme..."
-# Ejecutamos para root y para jaime
-# pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh -f --silent-mode"
-# pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && sudo -u jaime ./tweaks.sh -f --silent-mode"
+# Ejecutamos para root y para jaime (permitimos fallo solo si es por falta de inicialización)
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh -f --silent-mode" || {
+    if [ ! -d "$ROOTFS/root/.mozilla/firefox" ]; then
+        echo "⚠️ Advertencia: Firefox no inicializado para root, continuando..."
+    else
+        echo "❌ Error real al aplicar tema de Firefox a root"
+        exit 1
+    fi
+}
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && sudo -u jaime ./tweaks.sh -f --silent-mode" || {
+    if [ ! -d "$ROOTFS/home/jaime/.mozilla/firefox" ]; then
+        echo "⚠️ Advertencia: Firefox no inicializado para jaime, continuando..."
+    else
+        echo "❌ Error real al aplicar tema de Firefox a jaime"
+        exit 1
+    fi
+}
 
 # Instalación global de ICONOS
 echo "Instalando iconos MacTahoe..."
@@ -111,6 +136,11 @@ pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/Fildem && python3 setup.
 # Asegurar que el binario de fildem sea reconocido forzando un symlink si es necesario
 pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem /usr/bin/fildem || true
 pkexec /usr/sbin/chroot "$ROOTFS" ln -sf /usr/local/bin/fildem-hud /usr/bin/fildem-hud || true
+
+# Configurar autostart global para Fildem (más fiable para GNOME)
+echo "Configurando Fildem HUD Autostart..."
+pkexec mkdir -p "$ROOTFS/etc/xdg/autostart"
+pkexec cp "$ROOTFS/tmp/Fildem/fildem-hud.desktop" "$ROOTFS/etc/xdg/autostart/"
 
 # Configurar el servicio systemd de fildem de forma global para todos los usuarios
 echo "Configurando Fildem HUD Systemd Service..."
@@ -185,6 +215,7 @@ install_extension_ego() {
 }
 
 EGO_EXTENSIONS=(
+    "wiggle@mechtifs"
     "search-light@icedman.github.com"
     "kiwimenu@kemma"
     "compiz-alike-magic-lamp-effect@hermes83.github.com"
@@ -203,11 +234,22 @@ for uuid in "${EGO_EXTENSIONS[@]}"; do install_extension_ego "$uuid"; done
 echo "Compilando esquemas de extensiones..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/extensions -name schemas -type d -exec glib-compile-schemas {} \;"
 
+# Compilar esquemas globales (incluyendo /usr/local por si acaso)
+echo "Compilando esquemas globales..."
+# Eliminar esquemas compilados residuales que puedan causar conflictos
+pkexec rm -f "$ROOTFS/usr/local/share/glib-2.0/schemas/gschemas.compiled" || true
+pkexec rm -f "$ROOTFS/usr/share/glib-2.0/schemas/gschemas.compiled" || true
+
+pkexec /usr/sbin/chroot "$ROOTFS" glib-compile-schemas /usr/share/glib-2.0/schemas/
+if [ -d "$ROOTFS/usr/local/share/glib-2.0/schemas" ]; then
+    pkexec /usr/sbin/chroot "$ROOTFS" glib-compile-schemas /usr/local/share/glib-2.0/schemas/
+fi
+
 # --- NUEVO MÉTODO: GSCHEMA OVERRIDE (Más fiable para Debian) ---
 echo "Configurando gschema overrides para forzar extensiones, fondo y ajustes..."
 # Priorizamos fildem@inled.es
-EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com', 'notification-position@drugo.dev']"
-FAVORITES_LIST="['firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Geary.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Calculator.desktop', 'com.github.xournalpp.xournalpp.desktop', 'org.gnome.Loupe.desktop', 'io.bassi.Amberol.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Software.desktop']"
+EXTENSIONS_LIST="['user-theme@gnome-shell-extensions.gcampax.github.com', 'dash-to-dock@micxgx.gmail.com', 'blur-my-shell@aunetx', 'search-light@icedman.github.com', 'kiwimenu@kemma', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'fullscreen-to-empty-workspace2@corgijan.dev', 'just-perfection-desktop@just-perfection', 'fildem@inled.es', 'appindicatorsupport@rgcjonas.gmail.com', 'notification-position@drugo.dev', 'wiggle@mechtifs', 'gsconnect@andyholmes.github.io']"
+FAVORITES_LIST="['spotlight.desktop', 'brave-browser.desktop', 'firefox-esr.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'org.gnome.Geary.desktop', 'org.gnome.Calendar.desktop', 'org.gnome.Calculator.desktop', 'com.github.xournalpp.xournalpp.desktop', 'org.gnome.Loupe.desktop', 'io.bassi.Amberol.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Software.desktop']"
 
 cat <<EOF | pkexec tee "$ROOTFS/usr/share/glib-2.0/schemas/90_pulsaros.gschema.override"
 [org.gnome.shell]

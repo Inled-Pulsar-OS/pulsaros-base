@@ -55,6 +55,7 @@ gnome-shell-extensions
 gnome-shell-extension-blur-my-shell
 gnome-shell-extension-dashtodock
 gnome-shell-extension-appindicator
+gnome-shell-extension-gsconnect
 # Dependencias Fildem HUD
 python3-gi
 python3-dbus
@@ -91,6 +92,7 @@ gnome-disk-utility
 gnome-system-monitor
 gnome-logs
 locales
+docker.io
 # Aceleración QEMU/VirGL
 libgl1-mesa-dri
 libvirglrenderer1

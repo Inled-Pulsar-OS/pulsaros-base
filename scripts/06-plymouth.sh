@@ -37,6 +37,14 @@ PLYMOUTH_THEME_DEST="$ROOTFS/usr/share/plymouth/themes/pulsar-plymouth"
 pkexec mkdir -p "$PLYMOUTH_THEME_DEST"
 pkexec cp -r "$BUILD_DIR/plymouth-theme/." "$PLYMOUTH_THEME_DEST/"
 
+# Eliminar logo de Debian persistente en Plymouth
+echo "Eliminando logo de Debian en el Splash..."
+pkexec mkdir -p "$ROOTFS/usr/share/plymouth"
+# Crear una imagen transparente de 1x1 para sustituir al logo de Debian
+pkexec convert -size 1x1 xc:transparent "$ROOTFS/usr/share/plymouth/debian-logo.png" || true
+# Algunos temas usan esta ruta
+pkexec cp "$ROOTFS/usr/share/plymouth/debian-logo.png" "$ROOTFS/usr/share/plymouth/themes/debian-logo.png" || true
+
 # Asegurar que header-image.png esté en la carpeta images/ (el módulo two-step lo busca allí)
 # Aunque ya lo hemos corregido en el repo, esto lo hace robusto
 if [ -f "$PLYMOUTH_THEME_DEST/header-image.png" ]; then
