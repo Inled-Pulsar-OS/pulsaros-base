@@ -41,6 +41,9 @@ if [ -d "$OUTPUT_DIR/etc" ]; then
     pkexec mount --bind /dev "$OUTPUT_DIR/dev" || true
     pkexec mount --bind /dev/pts "$OUTPUT_DIR/dev/pts" || true
 
+    # Solución para instalaciones interrumpidas
+    pkexec /usr/sbin/chroot "$OUTPUT_DIR" dpkg --configure -a
+
     # Solución temporal para DNS (especialmente con VPN/WARP)
     if [ -f "$OUTPUT_DIR/etc/resolv.conf" ]; then
         pkexec cp "$OUTPUT_DIR/etc/resolv.conf" "$OUTPUT_DIR/etc/resolv.conf.bak"
@@ -48,7 +51,7 @@ if [ -d "$OUTPUT_DIR/etc" ]; then
     echo "nameserver 8.8.8.8" | pkexec tee "$OUTPUT_DIR/etc/resolv.conf" > /dev/null
 
     pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get update
-    pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get install -y $PACKAGE_LIST_SPACE
+    pkexec /usr/sbin/chroot "$OUTPUT_DIR" apt-get install -y --no-install-recommends $PACKAGE_LIST_SPACE
     
     echo "Sincronización completada."
     exit 0

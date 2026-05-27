@@ -85,17 +85,17 @@ EOF
 pkexec sed -i 's/nullok_secure/nullok/' "$ROOTFS/etc/pam.d/common-auth" || true
 
 # Habilitar login en consola serie (QUITADO para evitar bucle)
-echo "Deshabilitando getty en ttyS0 para evitar conflicto con GDM3..."
+echo "Deshabilitando getty en ttyS0 para evitar conflicto con SDDM..."
 pkexec /usr/sbin/chroot "$ROOTFS" systemctl disable getty@ttyS0.service || true
 pkexec /usr/sbin/chroot "$ROOTFS" systemctl mask getty@ttyS0.service || true
 
-# Configurar Autologin Gráfico en GDM3
+# Configurar Autologin Gráfico en SDDM
 echo "Configurando autologin gráfico para live..."
-pkexec mkdir -p "$ROOTFS/etc/gdm3"
-cat <<EOF | pkexec tee "$ROOTFS/etc/gdm3/daemon.conf"
-[daemon]
-AutomaticLoginEnable=true
-AutomaticLogin=live
+pkexec mkdir -p "$ROOTFS/etc/sddm.conf.d"
+cat <<EOF | pkexec tee "$ROOTFS/etc/sddm.conf.d/autologin.conf"
+[Autologin]
+User=live
+Session=gnome.desktop
 EOF
 
 
@@ -124,6 +124,20 @@ echo "nameserver 8.8.8.8" | pkexec tee "$ROOTFS/etc/resolv.conf" > /dev/null
 # --- Instalación de Software Adicional ---
 echo "--- Instalando Software Adicional (Flatpak, AppInstall) ---"
 
+# Función robusta para obtener la última URL de descarga de GitHub
+get_github_latest_url() {
+    local repo=$1
+    local url=""
+    url=$(curl -s "https://api.github.com/repos/${repo}/releases/latest" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+    
+    # Si la URL está vacía o es null, intentar fallback o fallar con mensaje claro
+    if [ -z "$url" ] || [ "$url" == "null" ]; then
+        echo "❌ Error: No se pudo obtener la URL de descarga para $repo. Probablemente rate-limit de GitHub API." >&2
+        return 1
+    fi
+    echo "$url"
+}
+
 # 1. Configurar Flathub
 echo "Configurando Flathub..."
 pkexec /usr/sbin/chroot "$ROOTFS" flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -142,31 +156,35 @@ pkexec /usr/sbin/chroot "$ROOTFS" flatpak install --system -y flathub org.locals
 
 # 4. Descargar e Instalar AppInstall (DEB)
 echo "Instalando AppInstall (Latest)..."
-APPINSTALL_URL=$(curl -s https://api.github.com/repos/InledGroup/appinstall/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
-pkexec wget -q -O "$ROOTFS/tmp/appinstall.deb" "$APPINSTALL_URL"
-pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/appinstall.deb
-pkexec rm -f "$ROOTFS/tmp/appinstall.deb"
+APPINSTALL_URL=$(get_github_latest_url "InledGroup/appinstall") && {
+    pkexec wget -q -O "$ROOTFS/tmp/appinstall.deb" "$APPINSTALL_URL"
+    pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/appinstall.deb
+    pkexec rm -f "$ROOTFS/tmp/appinstall.deb"
+} || echo "⚠️ Saltando AppInstall por error en API"
 
 # 5. Descargar e Instalar Spotlight-GTK (DEB)
 echo "Instalando Spotlight-GTK (Latest)..."
-SPOTLIGHT_URL=$(curl -s https://api.github.com/repos/InledGroup/spotlight-gtk/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
-pkexec wget -q -O "$ROOTFS/tmp/spotlight.deb" "$SPOTLIGHT_URL"
-pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/spotlight.deb
-pkexec rm -f "$ROOTFS/tmp/spotlight.deb"
+SPOTLIGHT_URL=$(get_github_latest_url "InledGroup/spotlight-gtk") && {
+    pkexec wget -q -O "$ROOTFS/tmp/spotlight.deb" "$SPOTLIGHT_URL"
+    pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/spotlight.deb
+    pkexec rm -f "$ROOTFS/tmp/spotlight.deb"
+} || echo "⚠️ Saltando Spotlight por error en API"
 
 # 6. Descargar e Instalar MacBoat (DEB)
 echo "Instalando MacBoat (Latest)..."
-MACBOAT_URL=$(curl -s https://api.github.com/repos/InledGroup/macboat/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
-pkexec wget -q -O "$ROOTFS/tmp/macboat.deb" "$MACBOAT_URL"
-pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/macboat.deb
-pkexec rm -f "$ROOTFS/tmp/macboat.deb"
+MACBOAT_URL=$(get_github_latest_url "InledGroup/macboat") && {
+    pkexec wget -q -O "$ROOTFS/tmp/macboat.deb" "$MACBOAT_URL"
+    pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/macboat.deb
+    pkexec rm -f "$ROOTFS/tmp/macboat.deb"
+} || echo "⚠️ Saltando MacBoat por error en API"
 
 # 7. Descargar e Instalar WinBoat (DEB)
 echo "Instalando WinBoat (Latest)..."
-WINBOAT_URL=$(curl -s https://api.github.com/repos/TibixDev/winboat/releases/latest | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
-pkexec wget -q -O "$ROOTFS/tmp/winboat.deb" "$WINBOAT_URL"
-pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/winboat.deb
-pkexec rm -f "$ROOTFS/tmp/winboat.deb"
+WINBOAT_URL=$(get_github_latest_url "TibixDev/winboat") && {
+    pkexec wget -q -O "$ROOTFS/tmp/winboat.deb" "$WINBOAT_URL"
+    pkexec /usr/sbin/chroot "$ROOTFS" apt install -y /tmp/winboat.deb
+    pkexec rm -f "$ROOTFS/tmp/winboat.deb"
+} || echo "⚠️ Saltando WinBoat por error en API"
 
 # 8. Asegurar grupo docker existe
 echo "Asegurando grupo docker..."
@@ -185,9 +203,9 @@ if [ -f "$ROOTFS/usr/share/applications/firefox-esr.desktop" ]; then
     pkexec sed -i 's/^Icon=.*/Icon=safari/' "$ROOTFS/usr/share/applications/firefox-esr.desktop"
 fi
 
-# Cambiar icono de Spotlight a "Aplicaciones Menu" (view-app-grid)
+# Cambiar icono de Spotlight a "Aplicaciones Menu" (appgrid)
 if [ -f "$ROOTFS/usr/share/applications/spotlight.desktop" ]; then
-    pkexec sed -i 's/^Icon=.*/Icon=view-app-grid/' "$ROOTFS/usr/share/applications/spotlight.desktop"
+    pkexec sed -i 's/^Icon=.*/Icon=appgrid/' "$ROOTFS/usr/share/applications/spotlight.desktop"
 fi
 
 # --- Configuración de Idiomas (Locales) ---

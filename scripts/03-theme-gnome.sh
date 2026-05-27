@@ -16,7 +16,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "🎨 Configurando Tema MacTahoe, Iconos, GDM y Fildem HUD..."
+echo "🎨 Configurando Tema MacTahoe, Iconos y Fildem HUD..."
 
 # 1. Clonar repositorios si no existen
 mkdir -p "$BUILD_DIR"
@@ -60,12 +60,9 @@ echo "Descargando fondo de pantalla Pulsar OS..."
 pkexec mkdir -p "$ROOTFS/usr/share/backgrounds"
 pkexec wget -q -O "$ROOTFS/usr/share/backgrounds/pulsar-os-tahoe.png" "https://raw.githubusercontent.com/Inled-Pulsar-OS/pulsar-art/refs/heads/main/pulsar-os-tahoe.png"
 
-# Instalación global GTK y GDM (Corremos como ROOT para permitir --silent-mode)
+# Instalación global GTK (Corremos como ROOT para permitir --silent-mode)
 echo "Aplicando temas GTK..."
 pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./install.sh -b -c dark -l --silent-mode"
-
-echo "Aplicando GDM tweaks..."
-pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "cd /tmp/MacTahoe && ./tweaks.sh -g --silent-mode"
 
 echo "Preparando perfiles de Firefox para el tema MacTahoe..."
 for USER_HOME in "/root" "/home/jaime" "/home/live" "/etc/skel"; do
@@ -147,6 +144,8 @@ echo "Configurando Fildem HUD Systemd Service..."
 pkexec mkdir -p "$ROOTFS/usr/lib/systemd/user/default.target.wants"
 pkexec cp "$ROOTFS/tmp/Fildem/fildem.service" "$ROOTFS/usr/lib/systemd/user/"
 pkexec ln -sf "/usr/lib/systemd/user/fildem.service" "$ROOTFS/usr/lib/systemd/user/default.target.wants/fildem.service"
+# Habilitar globalmente mediante systemctl (vía chroot)
+pkexec /usr/sbin/chroot "$ROOTFS" systemctl --global enable fildem.service || true
 
 # Instalar la extensión globalmente en lugar de localmente
 pkexec mkdir -p "$ROOTFS/usr/share/gnome-shell/extensions/fildem@inled.es"
@@ -230,15 +229,20 @@ EGO_EXTENSIONS=(
 )
 for uuid in "${EGO_EXTENSIONS[@]}"; do install_extension_ego "$uuid"; done
 
-# Compilar esquemas de las extensiones instaladas
-echo "Compilando esquemas de extensiones..."
-pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/extensions -name schemas -type d -exec glib-compile-schemas {} \;"
+# Compilar esquemas de las extensiones instaladas (Uno por uno para mayor seguridad)
+echo "Compilando esquemas de cada extensión y GSConnect..."
+# Forzar la búsqueda en todas las posibles rutas de extensiones (incluyendo las de apt y las manuales)
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/gnome-shell/extensions /usr/local/share/gnome-shell/extensions -name schemas -type d -exec glib-compile-schemas {} \; 2>/dev/null || true"
 
 # Compilar esquemas globales (incluyendo /usr/local por si acaso)
-echo "Compilando esquemas globales..."
+echo "Compilando esquemas globales y asegurando GSConnect..."
 # Eliminar esquemas compilados residuales que puedan causar conflictos
-pkexec rm -f "$ROOTFS/usr/local/share/glib-2.0/schemas/gschemas.compiled" || true
-pkexec rm -f "$ROOTFS/usr/share/glib-2.0/schemas/gschemas.compiled" || true
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share/glib-2.0/schemas -name gschemas.compiled -delete"
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/local/share/glib-2.0/schemas -name gschemas.compiled -delete 2>/dev/null || true"
+
+# Asegurar que glib-compile-schemas se ejecute en cualquier directorio que contenga archivos gschema.xml
+# Esto es vital para GSConnect si sus esquemas están repartidos o en rutas no estándar
+pkexec /usr/sbin/chroot "$ROOTFS" /bin/bash -c "find /usr/share /usr/local/share -name '*.gschema.xml' -printf '%h\n' | sort -u | xargs -n1 glib-compile-schemas 2>/dev/null || true"
 
 pkexec /usr/sbin/chroot "$ROOTFS" glib-compile-schemas /usr/share/glib-2.0/schemas/
 if [ -d "$ROOTFS/usr/local/share/glib-2.0/schemas" ]; then
@@ -293,8 +297,6 @@ background-opacity=0.2
 custom-theme-shrink=true
 show-apps-at-top=true
 show-trash=true
-# Habilitar el anclaje y movimiento de iconos
-move-to-monitor=true
 
 [org.gnome.shell.extensions.just-perfection]
 activities-button=false

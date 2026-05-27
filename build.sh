@@ -9,11 +9,24 @@ CONTINUE_MODE=false
 if [ "$1" == "--continue" ]; then
     CONTINUE_MODE=true
     echo "⏭️ Modo continuación activado. Saltando scripts completados..."
-elif [ "$1" == "--clean" ]; then
-    echo "🧹 Limpiando directorio build y estado..."
+elif [ "$1" == "--removeall" ]; then
+    echo "🚨 MODO DEPURACIÓN TOTAL: Borrando TODO el rastro de construcción..."
+    # Primero desmontar todo lo posible
     bash scripts/cleanup.sh
-    pkexec rm -rf build/*
+    
+    # Intentar desmontar agresivamente cualquier cosa dentro de build
+    echo "🔓 Asegurando que nada esté montado en build/..."
+    pkexec umount -l build/rootfs/proc 2>/dev/null || true
+    pkexec umount -l build/rootfs/sys 2>/dev/null || true
+    pkexec umount -l build/rootfs/dev/pts 2>/dev/null || true
+    pkexec umount -l build/rootfs/dev 2>/dev/null || true
+    
+    echo "🗑️ Borrando carpeta build/ por completo..."
+    pkexec rm -rf build
+    
     rm -f "$STATE_FILE"
+    echo "✨ Carpeta build eliminada. El sistema está ahora totalmente limpio."
+    exit 0
 fi
 
 # Función para ejecutar scripts y trackear éxito
@@ -48,6 +61,7 @@ run_script "scripts/04-grub-theme.sh"
 run_script "scripts/05-calamares.sh"
 run_script "scripts/06-plymouth.sh"
 run_script "scripts/07-branding.sh"
+run_script "scripts/08-sddm.sh"
 
 echo "✅ Proceso finalizado."
 # Limpiar el archivo de estado al finalizar con éxito total

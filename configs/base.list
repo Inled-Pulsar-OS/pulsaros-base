@@ -16,7 +16,18 @@ dbus
 # GNOME Base
 gnome-shell
 gnome-session
-gdm3
+# SDDM Base
+sddm
+qml6-module-qtquick-layouts
+qml6-module-qtquick-templates
+qml6-module-qtquick-controls
+qml6-module-qtquick-window
+qml6-module-qt5compat-graphicaleffects
+qml6-module-org-kde-breeze
+qml6-module-org-kde-kirigami
+qml6-module-org-kde-kquickcontrolsaddons
+qml6-module-org-kde-iconthemes
+libqt6svg6
 network-manager
 gnome-terminal
 xwayland
@@ -39,6 +50,7 @@ ca-certificates
 # Herramientas de configuración
 dconf-cli
 gnome-tweaks
+gnome-shell-extension-manager
 wget
 curl
 unzip
@@ -99,3 +111,4 @@ libvirglrenderer1
 libegl-mesa0
 libgbm1
 mesa-utils
+

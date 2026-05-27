@@ -18,32 +18,36 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "--- Instalando Pulsar Plymouth Theme (Desde Repo Oficial) ---"
+echo "--- Instalando Pulsar Plymouth Theme (Local) ---"
 
-# 1. Clonar o Actualizar el tema
-mkdir -p "$BUILD_DIR"
-if [ -d "$BUILD_DIR/plymouth-theme" ]; then
-    echo "Actualizando repositorio del tema Plymouth..."
-    cd "$BUILD_DIR/plymouth-theme" && git pull
-    cd "$PROJECT_ROOT"
-else
-    echo "Clonando repositorio del tema Plymouth..."
-    git clone "$THEME_REPO" "$BUILD_DIR/plymouth-theme" --depth=1
+# 1. Definir origen y destino
+PLYMOUTH_THEME_SRC="$PROJECT_ROOT/pulsar-plymouth-macos"
+PLYMOUTH_THEME_DEST="$ROOTFS/usr/share/plymouth/themes/pulsar-plymouth"
+
+if [ ! -d "$PLYMOUTH_THEME_SRC" ]; then
+    echo "❌ Error: No se encontró el tema en $PLYMOUTH_THEME_SRC"
+    exit 1
 fi
 
 # 2. Inyectar el tema en el rootfs
 echo "Copiando tema al rootfs..."
-PLYMOUTH_THEME_DEST="$ROOTFS/usr/share/plymouth/themes/pulsar-plymouth"
 pkexec mkdir -p "$PLYMOUTH_THEME_DEST"
-pkexec cp -r "$BUILD_DIR/plymouth-theme/." "$PLYMOUTH_THEME_DEST/"
+pkexec cp -r "$PLYMOUTH_THEME_SRC/." "$PLYMOUTH_THEME_DEST/"
 
 # Eliminar logo de Debian persistente en Plymouth
 echo "Eliminando logo de Debian en el Splash..."
 pkexec mkdir -p "$ROOTFS/usr/share/plymouth"
 # Crear una imagen transparente de 1x1 para sustituir al logo de Debian
 pkexec convert -size 1x1 xc:transparent "$ROOTFS/usr/share/plymouth/debian-logo.png" || true
-# Algunos temas usan esta ruta
+# Algunos temas usan estas rutas, las cubrimos todas
 pkexec cp "$ROOTFS/usr/share/plymouth/debian-logo.png" "$ROOTFS/usr/share/plymouth/themes/debian-logo.png" || true
+pkexec cp "$ROOTFS/usr/share/plymouth/debian-logo.png" "$ROOTFS/usr/share/plymouth/logo.png" || true
+pkexec cp "$ROOTFS/usr/share/plymouth/debian-logo.png" "$ROOTFS/usr/share/pixmaps/debian-logo.png" || true
+
+# Sobrescribir logos de temas instalados por defecto para evitar que se peguen
+for theme_logo in $(pkexec find "$ROOTFS/usr/share/plymouth/themes" -name "logo.png"); do
+    pkexec cp "$ROOTFS/usr/share/plymouth/debian-logo.png" "$theme_logo"
+done
 
 # Asegurar que header-image.png esté en la carpeta images/ (el módulo two-step lo busca allí)
 # Aunque ya lo hemos corregido en el repo, esto lo hace robusto

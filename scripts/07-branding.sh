@@ -10,7 +10,16 @@ TRANSPARENT_LOGO="$PROJECT_ROOT/build/assets/transparent.png"
 
 # Asegurar logos
 if [ ! -f "$TRANSPARENT_LOGO" ]; then
-    python3 -c "from PIL import Image; img = Image.new('RGBA', (1, 1), (0, 0, 0, 0)); img.save('$TRANSPARENT_LOGO')"
+    echo "Generando logo transparente..."
+    if pkexec python3 -c "from PIL import Image; img = Image.new('RGBA', (1, 1), (0, 0, 0, 0)); img.save('$TRANSPARENT_LOGO')" 2>/dev/null; then
+        echo "✅ Logo generado con PIL."
+    else
+        echo "⚠️ PIL no encontrado, usando fallback con ImageMagick..."
+        pkexec convert -size 1x1 xc:transparent "$TRANSPARENT_LOGO" || {
+            echo "❌ Error: No se pudo generar el logo transparente. Instala python3-pil o imagemagick."
+            exit 1
+        }
+    fi
 fi
 
 echo "--- APLICANDO IDENTIDAD PULSAR OS 13 (Surgical Edition) ---"
@@ -54,8 +63,8 @@ for logo_path in "$ROOTFS/usr/share/plymouth/debian-logo.png" "$ROOTFS/usr/share
 done
 
 # Hacer lo mismo con cualquier logo de otros temas que Plymouth pueda cargar como fallback
-# Somos agresivos: cualquier cosa que se llame logo o debian_logo en plymouth/themes debe ser transparente
-find "$ROOTFS/usr/share/plymouth/themes" -type f \( -name "debian-logo.png" -o -name "logo.png" -o -name "debian.png" -o -name "debian_logo.png" -o -name "debian_logo16.png" \) 2>/dev/null | while read -r path; do
+# Somos agresivos: cualquier cosa que se llame logo o debian o watermark en plymouth/themes debe ser transparente
+find "$ROOTFS/usr/share/plymouth" -type f \( -name "*.png" -o -name "*.svg" \) 2>/dev/null | grep -E "logo|debian|watermark" | while read -r path; do
     # NO tocar nuestro tema pulsar-plymouth
     if [[ "$path" != *"pulsar-plymouth"* ]]; then
         pkexec cp "$TRANSPARENT_LOGO" "$path"
